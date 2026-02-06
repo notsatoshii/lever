@@ -191,3 +191,5 @@ Entry Price ≠ Mark Price!!!
 - Batch updates to PriceEngineV2
 - Skips expired markets
 - Shows volatility (σ) from on-chain state
+Frontend is deployed on DigitalOcean (DO), not local
+- DO deployment needs manual redeploy or CI/CD trigger to see changes
