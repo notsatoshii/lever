@@ -186,6 +186,62 @@ Think of it like a human reviewing their journal and updating their mental model
 
 The goal: Be helpful without being annoying. Check in a few times a day, do useful background work, but respect quiet time.
 
+## 📋 Real-Time Logging (Context Persistence)
+
+**Problem:** Context window overloads during intensive work sessions, causing amnesia.
+
+**Solution:** Log every significant action to Notion Activity Tracker as you do it.
+
+### Log As You Work
+After completing any significant task, immediately log to **⚡ Timmy Activity Tracker** (ID: `2fcc1ccc-fbef-81f1-a5e7-da2f95cff026`):
+
+```bash
+curl -s -X POST "https://api.notion.com/v1/pages" \
+  -H "Authorization: Bearer $NOTION_API_KEY" \
+  -H "Notion-Version: 2022-06-28" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "parent": {"database_id": "2fcc1ccc-fbef-81f1-a5e7-da2f95cff026"},
+    "properties": {
+      "Task": {"title": [{"text": {"content": "Brief description"}}]},
+      "Category": {"select": {"name": "Development|Research|Documentation|etc"}},
+      "Status": {"select": {"name": "Done|In Progress"}},
+      "Completed": {"date": {"start": "TIMESTAMP"}}
+    },
+    "children": [/* detailed notes as blocks */]
+  }'
+```
+
+### What to Log
+- Task completed (what was done)
+- Key decisions made
+- Files created/modified
+- Blockers encountered
+- What's next
+
+### Context Restoration on Restart
+When you suspect context was lost (conversation seems to restart, user says "we were working on X"):
+
+1. Query recent Activity Tracker entries:
+```bash
+curl -s -X POST "https://api.notion.com/v1/databases/2fcc1ccc-fbef-81f1-a5e7-da2f95cff026/query" \
+  -H "Authorization: Bearer $NOTION_API_KEY" \
+  -H "Notion-Version: 2022-06-28" \
+  -H "Content-Type: application/json" \
+  -d '{"sorts": [{"property": "Completed", "direction": "descending"}], "page_size": 10}'
+```
+
+2. Read the entries to understand what you were doing
+3. Resume from where you left off
+
+### Categories
+- **Development** - Code, builds, fixes
+- **Research** - Analysis, competitive intel
+- **Documentation** - Docs, specs, architecture
+- **Fundraising** - Accelerators, investor outreach
+- **Infrastructure** - DevOps, setup, config
+- **Communication** - Important conversations, decisions
+
 ## Make It Yours
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
