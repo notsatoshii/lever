@@ -5,41 +5,54 @@ import Link from 'next/link';
 import { createPublicClient, http, formatUnits } from 'viem';
 import { bscTestnet } from 'viem/chains';
 import { CONTRACTS, PRICE_ENGINE_ABI, LEDGER_ABI } from '@/config/contracts';
-import { LEVER_MARKETS, getActiveMarkets, MarketConfig } from '@/config/markets';
-
-const client = createPublicClient({
-  chain: bscTestnet,
-  transport: http('https://data-seed-prebsc-1-s1.binance.org:8545'),
-});
-
 const CATEGORIES = ['All', 'Crypto', 'Politics', 'Finance', 'Sports', 'General'];
+
+interface MarketConfig {
+  id: number;
+  name: string;
+  question: string;
+  slug: string;
+  category: 'Crypto' | 'Politics' | 'Finance' | 'Sports' | 'General';
+  icon: string;
+  active: boolean;
+}
+
+// Inline markets data to fix loading issue
+const LEVER_MARKETS: MarketConfig[] = [
+  {
+    id: 1,
+    name: 'MicroStrategy BTC',
+    question: 'Will MicroStrategy sell any Bitcoin before 2027?',
+    slug: 'will-microstrategy-sell-any-bitcoin-before-2027',
+    category: 'Crypto',
+    icon: '₿',
+    active: true,
+  },
+  {
+    id: 2,
+    name: 'Trump Deportations',
+    question: 'Will Trump deport 250,000-500,000 people?',
+    slug: 'will-trump-deport-250000-500000-people',
+    category: 'Politics',
+    icon: '🇺🇸',
+    active: true,
+  },
+  {
+    id: 3,
+    name: 'GTA 6 $100+',
+    question: 'Will GTA 6 cost $100+?',
+    slug: 'will-gta-6-cost-100',
+    category: 'General',
+    icon: '🎮',
+    active: true,
+  },
+];
 
 interface MarketWithPrice extends MarketConfig {
   yesPrice: number;
   noPrice: number;
   totalOI: number;
   isLive: boolean;
-}
-
-// Skeleton loader for market cards
-function MarketCardSkeleton() {
-  return (
-    <div className="bg-gray-800 rounded-xl border border-gray-700 p-5 animate-pulse">
-      <div className="flex items-start gap-3 mb-4">
-        <div className="w-10 h-10 bg-gray-700 rounded-full" />
-        <div className="flex-1 h-12 bg-gray-700 rounded" />
-      </div>
-      <div className="flex gap-4 mb-3">
-        <div className="h-10 w-20 bg-gray-700 rounded" />
-        <div className="h-10 w-20 bg-gray-700 rounded" />
-      </div>
-      <div className="h-12 w-full bg-gray-700 rounded mb-4" />
-      <div className="flex gap-2">
-        <div className="h-10 flex-1 bg-gray-700 rounded" />
-        <div className="h-10 flex-1 bg-gray-700 rounded" />
-      </div>
-    </div>
-  );
 }
 
 // Market card component
@@ -61,7 +74,7 @@ function MarketCard({ market }: { market: MarketWithPrice }) {
         </h3>
       </div>
 
-      {/* Prices from PriceEngine */}
+      {/* Prices */}
       <div className="flex items-center gap-4 mb-4">
         <div>
           <span className="text-gray-500 text-xs">Yes</span>
@@ -113,25 +126,36 @@ function MarketCard({ market }: { market: MarketWithPrice }) {
   );
 }
 
+// Create initial markets data
+const INITIAL_MARKETS: MarketWithPrice[] = LEVER_MARKETS
+  .filter(m => m.active)
+  .map(m => ({
+    ...m,
+    yesPrice: 0.5,
+    noPrice: 0.5,
+    totalOI: 0,
+    isLive: true,
+  }));
+
 export default function HomePage() {
-  const [markets, setMarkets] = useState<MarketWithPrice[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [markets, setMarkets] = useState<MarketWithPrice[]>(INITIAL_MARKETS);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const contracts = CONTRACTS[97];
 
-  // Fetch prices from PriceEngine for all markets
+  // Fetch on-chain prices to update
   useEffect(() => {
-    async function loadMarkets() {
+
+    // Then fetch real prices from chain
+    async function fetchPrices() {
       try {
-        setIsLoading(true);
-        
-        const activeMarkets = getActiveMarkets();
-        
-        // Fetch on-chain data for each market
-        const marketsWithPrices = await Promise.all(
-          activeMarkets.map(async (market) => {
+        const client = createPublicClient({
+          chain: bscTestnet,
+          transport: http('https://data-seed-prebsc-1-s1.binance.org:8545'),
+        });
+
+        const updated = await Promise.all(
+          INITIAL_MARKETS.map(async (market) => {
             try {
               const [price, marketData] = await Promise.all([
                 client.readContract({
@@ -151,7 +175,7 @@ export default function HomePage() {
               const yesPrice = Number(formatUnits(price as bigint, 18));
               const mkt = marketData as any;
               const totalOI = Number(formatUnits(
-                (mkt.totalLongOI || 0n) + (mkt.totalShortOI || 0n), 
+                BigInt(mkt.totalLongOI || 0) + BigInt(mkt.totalShortOI || 0), 
                 18
               ));
               
@@ -160,35 +184,23 @@ export default function HomePage() {
                 yesPrice: Math.max(0.01, Math.min(0.99, yesPrice)),
                 noPrice: Math.max(0.01, Math.min(0.99, 1 - yesPrice)),
                 totalOI,
-                isLive: mkt.active || false,
+                isLive: mkt.active ?? true,
               };
             } catch (e) {
-              // Return with default values if fetch fails
-              return {
-                ...market,
-                yesPrice: 0.5,
-                noPrice: 0.5,
-                totalOI: 0,
-                isLive: false,
-              };
+              console.error(`Market ${market.id} fetch error:`, e);
+              return market; // Keep defaults
             }
           })
         );
         
-        setMarkets(marketsWithPrices);
-        setError(null);
+        setMarkets(updated);
       } catch (e) {
-        console.error('Failed to load markets:', e);
-        setError('Failed to load market data');
-      } finally {
-        setIsLoading(false);
+        console.error('Price fetch failed:', e);
       }
     }
     
-    loadMarkets();
-    
-    // Refresh every 10 seconds
-    const interval = setInterval(loadMarkets, 10000);
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 15000);
     return () => clearInterval(interval);
   }, [contracts]);
 
@@ -235,34 +247,22 @@ export default function HomePage() {
         </select>
       </div>
 
-      {/* Error state */}
-      {error && (
-        <div className="bg-red-900/30 border border-red-700 rounded-lg p-4 mb-6">
-          <p className="text-red-400">{error}</p>
-        </div>
-      )}
-
       {/* Markets grid */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        {isLoading ? (
-          // Skeleton loaders
-          Array.from({ length: 3 }).map((_, i) => (
-            <MarketCardSkeleton key={i} />
-          ))
-        ) : filteredMarkets.length > 0 ? (
+        {filteredMarkets.length > 0 ? (
           filteredMarkets.map((market) => (
             <MarketCard key={market.id} market={market} />
           ))
         ) : (
           <div className="col-span-full text-center py-12 text-gray-500">
-            <p>No markets found matching your criteria.</p>
+            <p>No markets available.</p>
           </div>
         )}
       </div>
 
       {/* Data source attribution */}
       <div className="mt-8 text-center text-xs text-gray-600">
-        Prices from LEVER PriceEngine • Underlying markets via{' '}
+        Prices from LEVER Protocol • Underlying markets via{' '}
         <a href="https://polymarket.com" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
           Polymarket
         </a>
