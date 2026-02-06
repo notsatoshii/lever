@@ -8,13 +8,31 @@ pragma solidity ^0.8.20;
  * @dev Answers: "What is the fair price/probability right now?"
  * 
  * Components:
- * - External probability oracle (Polymarket, UMA, etc.)
+ * - External probability index (aggregates Polymarket, UMA, etc.)
  * - EMA smoothing to prevent manipulation
  * - vAMM pricing curve for slippage
  * - Mark price for PnL calculations
+ * 
+ * Price Flow:
+ * 1. ProbabilityIndex aggregates prices from multiple sources
+ * 2. PriceEngine pulls from index OR receives direct keeper updates
+ * 3. EMA smoothing applied to prevent manipulation
+ * 4. vAMM adjustment based on OI imbalance
+ * 5. Final mark price used for PnL and liquidations
  */
 
 import {IPositionLedger} from "./interfaces/IPositionLedger.sol";
+
+interface IProbabilityIndex {
+    function getIndexPrice(uint256 marketId) external view returns (uint256);
+    function calculateIndex(uint256 marketId) external returns (uint256);
+    function previewIndex(uint256 marketId) external view returns (
+        uint256 calculatedIndex,
+        uint256 sourcesUsed,
+        uint256[] memory usedSourceIds,
+        uint256[] memory usedPrices
+    );
+}
 
 contract PriceEngine {
     
@@ -35,9 +53,13 @@ contract PriceEngine {
     
     address public owner;
     IPositionLedger public immutable ledger;
+    IProbabilityIndex public probabilityIndex;
     
     // marketId => PriceConfig
     mapping(uint256 => PriceConfig) public priceConfigs;
+    
+    // marketId => use probability index (vs direct keeper updates)
+    mapping(uint256 => bool) public useIndex;
     
     // Authorized price updaters (keepers)
     mapping(address => bool) public authorizedKeepers;
@@ -96,6 +118,21 @@ contract PriceEngine {
         emit KeeperAuthorized(keeper, authorized);
     }
     
+    /**
+     * @notice Set the probability index contract
+     */
+    function setProbabilityIndex(address _index) external onlyOwner {
+        probabilityIndex = IProbabilityIndex(_index);
+    }
+    
+    /**
+     * @notice Enable/disable probability index for a market
+     * @dev When enabled, updatePriceFromIndex() should be used instead of updatePrice()
+     */
+    function setUseIndex(uint256 marketId, bool _useIndex) external onlyOwner {
+        useIndex[marketId] = _useIndex;
+    }
+    
     function configurePricing(
         uint256 marketId,
         address oracle,
@@ -127,6 +164,16 @@ contract PriceEngine {
         uint256 marketId,
         uint256 newOraclePrice
     ) external onlyKeeper marketConfigured(marketId) {
+        _updatePriceInternal(marketId, newOraclePrice);
+    }
+    
+    /**
+     * @notice Internal price update logic
+     */
+    function _updatePriceInternal(
+        uint256 marketId,
+        uint256 newOraclePrice
+    ) internal {
         if (newOraclePrice == 0 || newOraclePrice > PRICE_PRECISION) revert InvalidPrice();
         
         PriceConfig storage config = priceConfigs[marketId];
@@ -161,6 +208,73 @@ contract PriceEngine {
     }
     
     /**
+     * @notice Update price by pulling from ProbabilityIndex
+     * @dev Triggers index calculation, then applies EMA smoothing
+     * @param marketId Market to update
+     */
+    function updatePriceFromIndex(uint256 marketId) external onlyKeeper marketConfigured(marketId) {
+        require(address(probabilityIndex) != address(0), "Index not set");
+        require(useIndex[marketId], "Index not enabled for market");
+        
+        // Calculate and fetch index price
+        uint256 newOraclePrice = probabilityIndex.calculateIndex(marketId);
+        if (newOraclePrice == 0 || newOraclePrice > PRICE_PRECISION) revert InvalidPrice();
+        
+        PriceConfig storage config = priceConfigs[marketId];
+        
+        // Calculate new EMA
+        uint256 newEmaPrice;
+        if (config.lastUpdate == 0) {
+            newEmaPrice = newOraclePrice;
+        } else {
+            uint256 elapsed = block.timestamp - config.lastUpdate;
+            uint256 alpha = _calculateAlpha(elapsed, config.emaPeriod);
+            newEmaPrice = (alpha * newOraclePrice + (PRICE_PRECISION - alpha) * config.emaPrice) / PRICE_PRECISION;
+        }
+        
+        // Check deviation
+        uint256 deviation = _calculateDeviation(newOraclePrice, newEmaPrice);
+        if (deviation > config.maxDeviation) revert PriceDeviationTooHigh();
+        
+        // Calculate mark price
+        uint256 markPrice = _calculateMarkPrice(marketId, newEmaPrice, config.vammDepth);
+        
+        // Update state
+        config.oraclePrice = newOraclePrice;
+        config.emaPrice = newEmaPrice;
+        config.markPrice = markPrice;
+        config.lastUpdate = block.timestamp;
+        
+        emit PriceUpdated(marketId, newOraclePrice, newEmaPrice, markPrice);
+    }
+    
+    /**
+     * @notice Preview what the price would be if updated from index
+     */
+    function previewPriceFromIndex(uint256 marketId) external view returns (
+        uint256 indexPrice,
+        uint256 sourcesUsed,
+        uint256 projectedEma,
+        uint256 projectedMark
+    ) {
+        require(address(probabilityIndex) != address(0), "Index not set");
+        
+        (indexPrice, sourcesUsed,,) = probabilityIndex.previewIndex(marketId);
+        
+        PriceConfig storage config = priceConfigs[marketId];
+        
+        if (config.lastUpdate == 0) {
+            projectedEma = indexPrice;
+        } else {
+            uint256 elapsed = block.timestamp - config.lastUpdate;
+            uint256 alpha = _calculateAlpha(elapsed, config.emaPeriod);
+            projectedEma = (alpha * indexPrice + (PRICE_PRECISION - alpha) * config.emaPrice) / PRICE_PRECISION;
+        }
+        
+        projectedMark = _calculateMarkPrice(marketId, projectedEma, config.vammDepth);
+    }
+    
+    /**
      * @notice Batch update multiple markets
      */
     function batchUpdatePrices(
@@ -169,7 +283,7 @@ contract PriceEngine {
     ) external onlyKeeper {
         require(marketIds.length == prices.length, "Length mismatch");
         for (uint256 i = 0; i < marketIds.length; i++) {
-            this.updatePrice(marketIds[i], prices[i]);
+            _updatePriceInternal(marketIds[i], prices[i]);
         }
     }
     

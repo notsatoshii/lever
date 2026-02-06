@@ -1,11 +1,15 @@
-'use client';
-
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { WagmiProvider } from 'wagmi';
-import { config } from '@/config/wagmi';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
+import { Providers } from './providers';
+import { Navigation } from '@/components/Navigation';
 
-const queryClient = new QueryClient();
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata: Metadata = {
+  title: 'LEVER Protocol',
+  description: 'Leveraged Trading on Prediction Markets',
+};
 
 export default function RootLayout({
   children,
@@ -13,13 +17,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-gray-900 text-white">
-        <WagmiProvider config={config}>
-          <QueryClientProvider client={queryClient}>
+    <html lang="en" className="dark">
+      <body className={`${inter.className} bg-gray-950 text-white min-h-screen`}>
+        <Providers>
+          <Navigation />
+          <main className="max-w-7xl mx-auto">
             {children}
-          </QueryClientProvider>
-        </WagmiProvider>
+          </main>
+        </Providers>
       </body>
     </html>
   );

@@ -1,132 +1,141 @@
 'use client';
 
 import { useState } from 'react';
-import { useAccount, useConnect, useDisconnect } from 'wagmi';
-import { TradingPanel } from '@/components/TradingPanel';
-import { PositionPanel } from '@/components/PositionPanel';
-import { MarketStats } from '@/components/MarketStats';
-import { LPPanel } from '@/components/LPPanel';
+import { MarketCard } from '@/components/MarketCard';
 
-function ConnectButton() {
-  const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
+// Mock markets data - in production would come from contract/API
+const MARKETS = [
+  { 
+    id: 1, 
+    name: 'MicroStrategy BTC Sale', 
+    question: 'Will MicroStrategy sell Bitcoin before end of 2025?',
+    icon: '🪙',
+    category: 'Crypto'
+  },
+  { 
+    id: 2, 
+    name: 'Trump Deportations', 
+    question: 'Trump deports 250k-500k people in 2025?',
+    icon: '🇺🇸',
+    category: 'Politics'
+  },
+  { 
+    id: 3, 
+    name: 'GTA 6 Price', 
+    question: 'Will GTA 6 cost $100 or more at launch?',
+    icon: '🎮',
+    category: 'Gaming'
+  },
+  { 
+    id: 4, 
+    name: 'Fed Rate Cut', 
+    question: 'Will the Fed decrease interest rates by 25 bps after the March 2026 meeting?',
+    icon: '🏦',
+    category: 'Finance'
+  },
+  { 
+    id: 5, 
+    name: 'Arsenal Premier League', 
+    question: 'Will Arsenal win the 2025-26 English Premier League?',
+    icon: '⚽',
+    category: 'Sports'
+  },
+  { 
+    id: 6, 
+    name: 'ETH Price', 
+    question: 'Will ETH exceed $10,000 in 2025?',
+    icon: '💎',
+    category: 'Crypto'
+  },
+];
 
-  if (isConnected) {
-    return (
-      <button
-        onClick={() => disconnect()}
-        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
-      >
-        {address?.slice(0, 6)}...{address?.slice(-4)}
-      </button>
-    );
-  }
+const CATEGORIES = ['All', 'Crypto', 'Politics', 'Gaming', 'Finance', 'Sports'];
+
+export default function HomePage() {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  const filteredMarkets = MARKETS.filter((market) => {
+    const matchesSearch = market.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         market.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'All' || market.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
-    <button
-      onClick={() => connect({ connector: connectors[0] })}
-      className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-medium"
-    >
-      Connect Wallet
-    </button>
-  );
-}
-
-export default function Home() {
-  const { isConnected } = useAccount();
-  const [selectedMarket, setSelectedMarket] = useState(1); // Start with MicroStrategy market
-
-  return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="border-b border-gray-800 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-green-500">⚡ LEVER</span>
-            <span className="text-sm text-gray-500">BSC Testnet</span>
-          </div>
-          <ConnectButton />
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {!isConnected ? (
-          <div className="text-center py-20">
-            <h1 className="text-4xl font-bold mb-4">
-              Leveraged Trading on Prediction Markets
-            </h1>
-            <p className="text-gray-400 mb-8 max-w-xl mx-auto">
-              Trade up to 10x leverage on any prediction market outcome. 
-              Connect your wallet to start trading on BSC Testnet.
-            </p>
-            <div className="mb-8">
-              <ConnectButton />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl mx-auto text-left">
-              <div className="bg-gray-800 p-4 rounded-lg">
-                <div className="text-2xl mb-2">📈</div>
-                <h3 className="font-semibold mb-1">Up to 10x Leverage</h3>
-                <p className="text-gray-400 text-sm">Trade prediction outcomes with leverage</p>
-              </div>
-              <div className="bg-gray-800 p-4 rounded-lg">
-                <div className="text-2xl mb-2">🎯</div>
-                <h3 className="font-semibold mb-1">Real Polymarket Data</h3>
-                <p className="text-gray-400 text-sm">Prices from live prediction markets</p>
-              </div>
-              <div className="bg-gray-800 p-4 rounded-lg">
-                <div className="text-2xl mb-2">💰</div>
-                <h3 className="font-semibold mb-1">Earn as LP</h3>
-                <p className="text-gray-400 text-sm">Provide liquidity, earn trading fees</p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column - Market Stats & Position */}
-            <div className="lg:col-span-2 space-y-6">
-              <MarketStats 
-                selectedMarket={selectedMarket} 
-                onSelectMarket={setSelectedMarket} 
-              />
-              <PositionPanel marketId={selectedMarket} />
-            </div>
-
-            {/* Right Column - Trading & LP */}
-            <div className="space-y-6">
-              <TradingPanel marketId={selectedMarket} />
-              <LPPanel />
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-gray-800 px-6 py-4 mt-8">
-        <div className="max-w-7xl mx-auto text-center text-gray-500 text-sm">
-          <p>LEVER Protocol - BSC Testnet Demo</p>
-          <p className="mt-1">
-            <a 
-              href="https://github.com/notsatoshii/lever" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-green-500 hover:underline"
+    <div className="px-4 sm:px-6 py-6">
+      {/* Page Header - Responsive */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-white mb-4">Markets</h1>
+        
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Search - Full width on mobile */}
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Search markets"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+            />
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              GitHub
-            </a>
-            {' • '}
-            <a 
-              href="https://testnet.bnbchain.org/faucet-smart" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-green-500 hover:underline"
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+
+          {/* Category Filter */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+          >
+            {CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+
+          {/* View Toggle - Hide on mobile */}
+          <div className="hidden sm:flex items-center bg-gray-800 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-gray-700' : ''}`}
+              aria-label="Grid view"
             >
-              Get Testnet BNB
-            </a>
-          </p>
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-gray-700' : ''}`}
+              aria-label="List view"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
         </div>
-      </footer>
+      </div>
+
+      {/* Markets Grid */}
+      <div className={`grid gap-4 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+        {filteredMarkets.map((market) => (
+          <MarketCard key={market.id} market={market} />
+        ))}
+      </div>
+
+      {filteredMarkets.length === 0 && (
+        <div className="text-center py-12 text-gray-500">
+          No markets found matching your criteria.
+        </div>
+      )}
     </div>
   );
 }

@@ -1,8 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { formatUnits } from 'viem';
 import { CONTRACTS, LEDGER_ABI, PRICE_ENGINE_ABI, ROUTER_ABI } from '@/config/contracts';
+import { ensureFreshPrice } from '@/lib/priceUpdater';
 
 interface PositionPanelProps {
   marketId: number;
@@ -50,15 +52,35 @@ export function PositionPanel({ marketId }: PositionPanelProps) {
 
   // Close position
   const { writeContract: closePosition, data: closeHash } = useWriteContract();
-  const { isLoading: isClosing } = useWaitForTransactionReceipt({ 
+  const { isLoading: isClosing, isSuccess: closeSuccess } = useWaitForTransactionReceipt({ 
     hash: closeHash,
-    onSuccess: () => refetch(),
   });
 
-  const handleClose = () => {
+  // Refetch on successful close
+  useEffect(() => {
+    if (closeSuccess) {
+      refetch();
+    }
+  }, [closeSuccess, refetch]);
+
+  const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
+
+  const handleClose = async () => {
     if (!position?.size) return;
     
-    const sizeDelta = -position.size; // Close entire position
+    try {
+      // Auto-update price before closing (testnet pattern)
+      setIsUpdatingPrice(true);
+      console.log('Ensuring fresh price for market', marketId);
+      await ensureFreshPrice(marketId);
+      setIsUpdatingPrice(false);
+    } catch (e) {
+      console.error('Failed to update price:', e);
+      setIsUpdatingPrice(false);
+      return;
+    }
+
+    const sizeDelta = -(position.size as bigint); // Close entire position
     closePosition({
       address: contracts.ROUTER as `0x${string}`,
       abi: ROUTER_ABI,
@@ -86,15 +108,15 @@ export function PositionPanel({ marketId }: PositionPanelProps) {
   const pnlColor = unrealizedPnL === undefined 
     ? 'text-gray-400' 
     : unrealizedPnL >= 0n 
-      ? 'text-green-400' 
-      : 'text-red-400';
+      ? 'text-lever-green' 
+      : 'text-lever-red';
 
   if (!contracts.LEDGER) {
     return null;
   }
 
   return (
-    <div className="bg-lever-gray rounded-xl p-6 border border-gray-800">
+    <div className="bg-gray-800 rounded-xl p-6 border border-gray-800">
       <h2 className="text-lg font-semibold mb-4">Your Position</h2>
 
       {isLoading ? (
@@ -113,7 +135,7 @@ export function PositionPanel({ marketId }: PositionPanelProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className={`px-2 py-1 rounded text-sm font-semibold ${
-                isLong ? 'bg-green-600/20 text-green-400' : 'bg-red-600/20 text-red-400'
+                isLong ? 'bg-lever-green/20 text-lever-green' : 'bg-lever-red/20 text-lever-red'
               }`}>
                 {isLong ? 'LONG' : 'SHORT'}
               </span>
@@ -167,7 +189,7 @@ export function PositionPanel({ marketId }: PositionPanelProps) {
               </div>
               <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
                 <div 
-                  className={`h-full ${unrealizedPnL >= 0n ? 'bg-green-500' : 'bg-red-500'}`}
+                  className={`h-full ${unrealizedPnL >= 0n ? 'bg-lever-green' : 'bg-lever-red'}`}
                   style={{ 
                     width: `${Math.min(100, Math.abs(Number(unrealizedPnL) / Number(position.collateral) * 100))}%`
                   }}
@@ -179,10 +201,14 @@ export function PositionPanel({ marketId }: PositionPanelProps) {
           {/* Close Button */}
           <button
             onClick={handleClose}
-            disabled={isClosing}
+            disabled={isClosing || isUpdatingPrice}
             className="w-full py-3 rounded-lg font-semibold bg-gray-700 hover:bg-gray-600 disabled:opacity-50"
           >
-            {isClosing ? 'Closing...' : 'Close Position'}
+            {isUpdatingPrice 
+              ? 'Updating price...' 
+              : isClosing 
+                ? 'Closing...' 
+                : 'Close Position'}
           </button>
         </div>
       )}

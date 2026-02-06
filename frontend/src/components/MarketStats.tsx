@@ -1,16 +1,20 @@
 'use client';
 
-import { useState } from 'react';
-import { useReadContracts } from 'wagmi';
-import { formatUnits } from 'viem';
+import { useState, useEffect } from 'react';
+import { createPublicClient, http, formatUnits } from 'viem';
+import { bscTestnet } from 'viem/chains';
 import { CONTRACTS, PRICE_ENGINE_ABI, LEDGER_ABI, FUNDING_ENGINE_ABI } from '@/config/contracts';
 
-// Market definitions - from Polymarket
+const client = createPublicClient({
+  chain: bscTestnet,
+  transport: http('https://data-seed-prebsc-1-s1.binance.org:8545'),
+});
+
 const MARKETS = [
-  { id: 0n, name: 'Test Market', description: 'Initial test market' },
-  { id: 1n, name: 'MicroStrategy BTC Sale', description: 'Will MicroStrategy sell Bitcoin?' },
-  { id: 2n, name: 'Trump Deportations 250-500k', description: 'Trump deports 250k-500k in 2025' },
-  { id: 3n, name: 'GTA 6 $100+', description: 'Will GTA 6 cost $100 or more?' },
+  { id: 0, name: 'Test Market', description: 'Initial test market' },
+  { id: 1, name: 'MicroStrategy BTC Sale', description: 'Will MicroStrategy sell Bitcoin?' },
+  { id: 2, name: 'Trump Deportations 250-500k', description: 'Trump deports 250k-500k in 2025' },
+  { id: 3, name: 'GTA 6 $100+', description: 'Will GTA 6 cost $100 or more?' },
 ];
 
 interface MarketStatsProps {
@@ -19,38 +23,50 @@ interface MarketStatsProps {
 }
 
 export function MarketStats({ selectedMarket, onSelectMarket }: MarketStatsProps) {
-  const chainId = 97;
-  const contracts = CONTRACTS[chainId];
-  const marketId = BigInt(selectedMarket);
+  const contracts = CONTRACTS[97];
+  const [markPrice, setMarkPrice] = useState<bigint | null>(null);
+  const [market, setMarket] = useState<any>(null);
+  const [fundingRate, setFundingRate] = useState<bigint | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data, isLoading } = useReadContracts({
-    contracts: [
-      {
-        address: contracts.PRICE_ENGINE as `0x${string}`,
-        abi: PRICE_ENGINE_ABI,
-        functionName: 'getMarkPrice',
-        args: [marketId],
-      },
-      {
-        address: contracts.LEDGER as `0x${string}`,
-        abi: LEDGER_ABI,
-        functionName: 'getMarket',
-        args: [marketId],
-      },
-      {
-        address: contracts.FUNDING_ENGINE as `0x${string}`,
-        abi: FUNDING_ENGINE_ABI,
-        functionName: 'getCurrentFundingRate',
-        args: [marketId],
-      },
-    ],
-  });
+  useEffect(() => {
+    async function fetchData() {
+      setIsLoading(true);
+      try {
+        const [price, mkt, funding] = await Promise.all([
+          client.readContract({
+            address: contracts.PRICE_ENGINE as `0x${string}`,
+            abi: PRICE_ENGINE_ABI,
+            functionName: 'getMarkPrice',
+            args: [BigInt(selectedMarket)],
+          }),
+          client.readContract({
+            address: contracts.LEDGER as `0x${string}`,
+            abi: LEDGER_ABI,
+            functionName: 'getMarket',
+            args: [BigInt(selectedMarket)],
+          }),
+          client.readContract({
+            address: contracts.FUNDING_ENGINE as `0x${string}`,
+            abi: FUNDING_ENGINE_ABI,
+            functionName: 'getCurrentFundingRate',
+            args: [BigInt(selectedMarket)],
+          }),
+        ]);
+        setMarkPrice(price as bigint);
+        setMarket(mkt);
+        setFundingRate(funding as bigint);
+      } catch (e) {
+        console.error('Error fetching market data:', e);
+      }
+      setIsLoading(false);
+    }
+    fetchData();
+    const interval = setInterval(fetchData, 10000); // Refresh every 10s
+    return () => clearInterval(interval);
+  }, [selectedMarket, contracts]);
 
-  const markPrice = data?.[0]?.result as bigint | undefined;
-  const market = data?.[1]?.result as any;
-  const fundingRate = data?.[2]?.result as bigint | undefined;
-
-  const formatPrice = (price: bigint | undefined) => {
+  const formatPrice = (price: bigint | null) => {
     if (!price) return '—';
     return `${(Number(formatUnits(price, 18)) * 100).toFixed(2)}%`;
   };
@@ -60,22 +76,14 @@ export function MarketStats({ selectedMarket, onSelectMarket }: MarketStatsProps
     return `${Number(formatUnits(oi, 18)).toLocaleString()}`;
   };
 
-  const formatFunding = (rate: bigint | undefined) => {
-    if (!rate) return '0.00%/h';
+  const formatFunding = (rate: bigint | null) => {
+    if (rate === null) return '0.00%/h';
     const rateNum = Number(rate) / 1e18 * 100;
     const prefix = rateNum >= 0 ? '+' : '';
     return `${prefix}${rateNum.toFixed(4)}%/h`;
   };
 
-  const currentMarket = MARKETS.find(m => Number(m.id) === selectedMarket) || MARKETS[0];
-
-  if (!contracts.PRICE_ENGINE) {
-    return (
-      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-        <p className="text-yellow-500">⚠️ Contracts not configured</p>
-      </div>
-    );
-  }
+  const currentMarket = MARKETS.find(m => m.id === selectedMarket) || MARKETS[0];
 
   return (
     <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
@@ -83,10 +91,10 @@ export function MarketStats({ selectedMarket, onSelectMarket }: MarketStatsProps
       <div className="flex flex-wrap gap-2 mb-6">
         {MARKETS.map((m) => (
           <button
-            key={Number(m.id)}
-            onClick={() => onSelectMarket(Number(m.id))}
+            key={m.id}
+            onClick={() => onSelectMarket(m.id)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              selectedMarket === Number(m.id)
+              selectedMarket === m.id
                 ? 'bg-green-600 text-white'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}

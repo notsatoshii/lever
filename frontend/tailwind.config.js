@@ -8,10 +8,20 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'lever-green': '#10B981',
-        'lever-red': '#EF4444',
-        'lever-dark': '#0f0f0f',
-        'lever-gray': '#1a1a1a',
+        'lever-green': '#22c55e', // green-500 for consistency
+        'lever-red': '#ef4444', // red-500 for consistency
+        'lever-blue': '#3b82f6', // blue-500 for accents
+        'lever-dark': '#030712', // gray-950
+        'lever-gray': '#1f2937', // gray-800
+      },
+      animation: {
+        'in': 'fadeIn 0.3s ease-in-out',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translateY(-10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
     },
   },

@@ -1,0 +1,27 @@
+
+> lever-keeper@1.0.0 start
+> npx tsx price-keeper.ts
+
+npm warn exec The following package was not found and will be installed: tsx@4.21.0
+🔑 Key length: 66 chars
+🔑 Keeper address: 0x7928251fE2D52CBECDCe0Fe9551aD9BF798347bc
+📊 Updating 3 markets every 60s
+
+[2026-02-06T10:44:22.361Z] Updating prices...
+  Market 1 (MicroStrategy BTC Sale): 12.08%
+    ❌ Market 1 error: The contract function "updatePrice" reverted with the following signature:
+0xd3c4a2f2
+
+Unable to dec
+  Market 2 (Trump Deportations): 35.32%
+    ❌ Market 2 error: The contract function "updatePrice" reverted with the following signature:
+0xd3c4a2f2
+
+Unable to dec
+  Market 3 (GTA 6 $100+): 8.08%
+    ❌ Market 3 error: The contract function "updatePrice" reverted with the following signature:
+0xd3c4a2f2
+
+Unable to dec
+
+⏰ Keeper running. Press Ctrl+C to stop.

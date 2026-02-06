@@ -28,6 +28,7 @@ contract Router {
     IPriceEngine public priceEngine;
     IRiskEngine public riskEngine;
     IERC20 public collateralToken;
+    address public lpPool;  // For paying profits / receiving losses
     
     // Reentrancy guard
     uint256 private constant NOT_ENTERED = 1;
@@ -110,6 +111,10 @@ contract Router {
         if (_ledger != address(0)) ledger = IPositionLedger(_ledger);
         if (_priceEngine != address(0)) priceEngine = IPriceEngine(_priceEngine);
         if (_riskEngine != address(0)) riskEngine = IRiskEngine(_riskEngine);
+    }
+    
+    function setLPPool(address _lpPool) external onlyOwner {
+        lpPool = _lpPool;
     }
     
     // ============ Trading Functions ============
@@ -230,9 +235,25 @@ contract Router {
             0
         );
         
-        // If fully closed, return collateral
+        // If fully closed, settle PnL and return collateral
         IPositionLedger.Position memory newPos = ledger.getPosition(msg.sender, marketId);
         if (newPos.size == 0 && pos.collateral > 0) {
+            // Handle PnL settlement with LP Pool
+            if (pnl > 0) {
+                // Profit: pull from LP Pool
+                require(lpPool != address(0), "LP Pool not set");
+                if (!collateralToken.transferFrom(lpPool, address(this), uint256(pnl))) {
+                    revert TransferFailed();
+                }
+            } else if (pnl < 0) {
+                // Loss: send to LP Pool (capped at collateral)
+                uint256 loss = uint256(-pnl);
+                if (loss > pos.collateral) loss = pos.collateral;
+                if (!collateralToken.transfer(lpPool, loss)) {
+                    revert TransferFailed();
+                }
+            }
+            
             // Calculate final amount (collateral + PnL)
             int256 finalAmount = int256(pos.collateral) + pnl;
             if (finalAmount > 0) {

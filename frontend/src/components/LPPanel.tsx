@@ -1,88 +1,154 @@
 'use client';
 
-import { useState } from 'react';
-import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { parseUnits, formatUnits } from 'viem';
+import { useState, useEffect } from 'react';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { createPublicClient, http, parseUnits, formatUnits } from 'viem';
+import { bscTestnet } from 'viem/chains';
 import { CONTRACTS, USDT_ABI, LP_POOL_ABI } from '@/config/contracts';
 
+const client = createPublicClient({
+  chain: bscTestnet,
+  transport: http('https://data-seed-prebsc-1-s1.binance.org:8545'),
+});
+
 export function LPPanel() {
-  const { address } = useAccount();
-  const chainId = 97;
-  const contracts = CONTRACTS[chainId];
+  const { address, isConnected, chain } = useAccount();
+  const contracts = CONTRACTS[97];
+  
+  // Debug connection
+  console.log('LPPanel wallet:', { address, isConnected, chainId: chain?.id });
 
   const [mode, setMode] = useState<'deposit' | 'withdraw'>('deposit');
   const [amount, setAmount] = useState('');
+  
+  // Pool stats
+  const [totalAssets, setTotalAssets] = useState<bigint | null>(null);
+  const [sharePrice, setSharePrice] = useState<bigint | null>(null);
+  const [utilization, setUtilization] = useState<bigint | null>(null);
+  
+  // User stats
+  const [usdtBalance, setUsdtBalance] = useState<bigint | null>(null);
+  const [lpBalance, setLpBalance] = useState<bigint | null>(null);
+  const [allowance, setAllowance] = useState<bigint | null>(null);
 
-  // Read balances and pool stats
-  const { data, refetch } = useReadContracts({
-    contracts: [
-      {
-        address: contracts.USDT as `0x${string}`,
-        abi: USDT_ABI,
-        functionName: 'balanceOf',
-        args: [address!],
-      },
-      {
-        address: contracts.LP_POOL as `0x${string}`,
-        abi: LP_POOL_ABI,
-        functionName: 'balanceOf',
-        args: [address!],
-      },
-      {
-        address: contracts.LP_POOL as `0x${string}`,
-        abi: LP_POOL_ABI,
-        functionName: 'totalAssets',
-      },
-      {
-        address: contracts.LP_POOL as `0x${string}`,
-        abi: LP_POOL_ABI,
-        functionName: 'sharePrice',
-      },
-      {
-        address: contracts.LP_POOL as `0x${string}`,
-        abi: LP_POOL_ABI,
-        functionName: 'utilization',
-      },
-      {
-        address: contracts.USDT as `0x${string}`,
-        abi: USDT_ABI,
-        functionName: 'allowance',
-        args: [address!, contracts.LP_POOL as `0x${string}`],
-      },
-    ],
-  });
+  // Fetch pool stats (always)
+  useEffect(() => {
+    async function fetchPoolStats() {
+      try {
+        const [assets, price, util] = await Promise.all([
+          client.readContract({
+            address: contracts.LP_POOL as `0x${string}`,
+            abi: LP_POOL_ABI,
+            functionName: 'totalAssets',
+          }),
+          client.readContract({
+            address: contracts.LP_POOL as `0x${string}`,
+            abi: LP_POOL_ABI,
+            functionName: 'sharePrice',
+          }),
+          client.readContract({
+            address: contracts.LP_POOL as `0x${string}`,
+            abi: LP_POOL_ABI,
+            functionName: 'utilization',
+          }),
+        ]);
+        setTotalAssets(assets as bigint);
+        setSharePrice(price as bigint);
+        setUtilization(util as bigint);
+      } catch (e) {
+        console.error('Error fetching pool stats:', e);
+      }
+    }
+    fetchPoolStats();
+    const interval = setInterval(fetchPoolStats, 10000);
+    return () => clearInterval(interval);
+  }, [contracts]);
 
-  const usdtBalance = data?.[0]?.result as bigint | undefined;
-  const lpBalance = data?.[1]?.result as bigint | undefined;
-  const totalAssets = data?.[2]?.result as bigint | undefined;
-  const sharePrice = data?.[3]?.result as bigint | undefined;
-  const utilization = data?.[4]?.result as bigint | undefined;
-  const allowance = data?.[5]?.result as bigint | undefined;
+  // Fetch user balances (when connected)
+  useEffect(() => {
+    async function fetchUserStats() {
+      if (!address) return;
+      try {
+        const [usdt, lp, allow] = await Promise.all([
+          client.readContract({
+            address: contracts.USDT as `0x${string}`,
+            abi: USDT_ABI,
+            functionName: 'balanceOf',
+            args: [address],
+          }),
+          client.readContract({
+            address: contracts.LP_POOL as `0x${string}`,
+            abi: LP_POOL_ABI,
+            functionName: 'balanceOf',
+            args: [address],
+          }),
+          client.readContract({
+            address: contracts.USDT as `0x${string}`,
+            abi: USDT_ABI,
+            functionName: 'allowance',
+            args: [address, contracts.LP_POOL as `0x${string}`],
+          }),
+        ]);
+        setUsdtBalance(usdt as bigint);
+        setLpBalance(lp as bigint);
+        setAllowance(allow as bigint);
+      } catch (e) {
+        console.error('Error fetching user stats:', e);
+      }
+    }
+    fetchUserStats();
+    const interval = setInterval(fetchUserStats, 5000);
+    return () => clearInterval(interval);
+  }, [address, contracts]);
 
   const amountWei = amount ? parseUnits(amount, 18) : 0n;
-  const needsApproval = mode === 'deposit' && allowance !== undefined && amountWei > allowance;
+  const needsApproval = mode === 'deposit' && allowance !== null && amountWei > allowance;
+  
+  // Track pending deposit after approval
+  const [pendingDepositAmount, setPendingDepositAmount] = useState<bigint | null>(null);
 
   // Write functions
   const { writeContract: approve, data: approveHash } = useWriteContract();
   const { writeContract: deposit, data: depositHash } = useWriteContract();
   const { writeContract: withdraw, data: withdrawHash } = useWriteContract();
 
-  const { isLoading: isApproving } = useWaitForTransactionReceipt({ hash: approveHash });
-  const { isLoading: isDepositing } = useWaitForTransactionReceipt({ 
-    hash: depositHash,
-    onSuccess: () => { refetch(); setAmount(''); },
-  });
-  const { isLoading: isWithdrawing } = useWaitForTransactionReceipt({ 
-    hash: withdrawHash,
-    onSuccess: () => { refetch(); setAmount(''); },
-  });
+  const { isLoading: isApproving, isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveHash });
+  const { isLoading: isDepositing } = useWaitForTransactionReceipt({ hash: depositHash });
+  const { isLoading: isWithdrawing } = useWaitForTransactionReceipt({ hash: withdrawHash });
+
+  // Auto-deposit after approval confirmed
+  useEffect(() => {
+    if (approveSuccess && pendingDepositAmount && address) {
+      console.log('Approval confirmed, auto-depositing:', pendingDepositAmount.toString());
+      deposit({
+        address: contracts.LP_POOL as `0x${string}`,
+        abi: LP_POOL_ABI,
+        functionName: 'deposit',
+        args: [pendingDepositAmount, address],
+      });
+      setPendingDepositAmount(null);
+    }
+  }, [approveSuccess, pendingDepositAmount, address, contracts.LP_POOL, deposit]);
 
   const handleApprove = () => {
+    console.log('Approving:', {
+      token: contracts.USDT,
+      spender: contracts.LP_POOL,
+      amount: amountWei.toString(),
+    });
+    // Store amount to deposit after approval
+    setPendingDepositAmount(amountWei);
     approve({
       address: contracts.USDT as `0x${string}`,
       abi: USDT_ABI,
       functionName: 'approve',
       args: [contracts.LP_POOL as `0x${string}`, amountWei * 2n],
+    }, {
+      onError: (e) => {
+        console.error('Approve error:', e);
+        setPendingDepositAmount(null);
+      },
+      onSuccess: (hash) => console.log('Approve tx:', hash),
     });
   };
 
@@ -104,44 +170,40 @@ export function LPPanel() {
     });
   };
 
-  if (!contracts.LP_POOL) {
-    return null;
-  }
-
   return (
-    <div className="bg-lever-gray rounded-xl p-6 border border-gray-800">
+    <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
       <h2 className="text-lg font-semibold mb-4">LP Pool</h2>
 
       {/* Pool Stats */}
       <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
-        <div className="bg-gray-800 rounded-lg p-3">
+        <div className="bg-gray-700 rounded-lg p-3">
           <p className="text-gray-400">TVL</p>
-          <p className="font-semibold">
+          <p className="font-semibold text-lg">
             {totalAssets 
-              ? `${Number(formatUnits(totalAssets, 18)).toLocaleString()} USDT`
+              ? `$${Number(formatUnits(totalAssets, 18)).toLocaleString()}`
               : '—'
             }
           </p>
         </div>
-        <div className="bg-gray-800 rounded-lg p-3">
+        <div className="bg-gray-700 rounded-lg p-3">
+          <p className="text-gray-400">APY</p>
+          <p className="font-semibold text-lg text-lever-green">
+            {utilization !== null
+              ? `${(Number(formatUnits(utilization, 18)) * 15).toFixed(1)}%`
+              : '—'
+            }
+          </p>
+        </div>
+        <div className="bg-gray-700 rounded-lg p-3">
           <p className="text-gray-400">Utilization</p>
           <p className="font-semibold">
-            {utilization 
+            {utilization !== null
               ? `${(Number(formatUnits(utilization, 18)) * 100).toFixed(1)}%`
               : '—'
             }
           </p>
         </div>
-        <div className="bg-gray-800 rounded-lg p-3">
-          <p className="text-gray-400">Share Price</p>
-          <p className="font-semibold">
-            {sharePrice 
-              ? `${Number(formatUnits(sharePrice, 18)).toFixed(4)}`
-              : '—'
-            }
-          </p>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-3">
+        <div className="bg-gray-700 rounded-lg p-3">
           <p className="text-gray-400">Your LP</p>
           <p className="font-semibold">
             {lpBalance 
@@ -158,7 +220,7 @@ export function LPPanel() {
           onClick={() => setMode('deposit')}
           className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
             mode === 'deposit'
-              ? 'bg-lever-green text-white'
+              ? 'bg-green-600 text-white'
               : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
           }`}
         >
@@ -168,7 +230,7 @@ export function LPPanel() {
           onClick={() => setMode('withdraw')}
           className={`flex-1 py-2 rounded-lg text-sm font-semibold transition ${
             mode === 'withdraw'
-              ? 'bg-lever-green text-white'
+              ? 'bg-green-600 text-white'
               : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
           }`}
         >
@@ -184,14 +246,14 @@ export function LPPanel() {
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-lever-green"
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-green-500"
           />
           <button
             onClick={() => {
               const max = mode === 'deposit' ? usdtBalance : lpBalance;
               if (max) setAmount(formatUnits(max, 18));
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-lever-green hover:underline"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-green-500 hover:underline"
           >
             MAX
           </button>
@@ -205,19 +267,21 @@ export function LPPanel() {
       </div>
 
       {/* Action Button */}
-      {mode === 'deposit' && needsApproval ? (
+      {!address ? (
+        <p className="text-center text-gray-400 py-3">Connect wallet to interact</p>
+      ) : mode === 'deposit' && needsApproval ? (
         <button
           onClick={handleApprove}
-          disabled={isApproving}
+          disabled={isApproving || pendingDepositAmount !== null}
           className="w-full py-3 rounded-lg font-semibold bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50"
         >
-          {isApproving ? 'Approving...' : 'Approve USDT'}
+          {isApproving ? 'Approving...' : pendingDepositAmount ? 'Depositing...' : 'Approve & Deposit'}
         </button>
       ) : (
         <button
           onClick={mode === 'deposit' ? handleDeposit : handleWithdraw}
           disabled={!amount || isDepositing || isWithdrawing}
-          className="w-full py-3 rounded-lg font-semibold bg-lever-green hover:bg-green-500 disabled:opacity-50"
+          className="w-full py-3 rounded-lg font-semibold bg-green-600 hover:bg-green-500 disabled:opacity-50"
         >
           {isDepositing || isWithdrawing 
             ? (mode === 'deposit' ? 'Depositing...' : 'Withdrawing...')
