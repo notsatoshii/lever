@@ -373,7 +373,7 @@ contract RouterV4 {
     
     function _getMarkPrice(uint256 marketId) internal view returns (uint256) {
         (bool success, bytes memory data) = priceEngine.staticcall(
-            abi.encodeWithSignature("getSmoothedPrice(uint256)", marketId)
+            abi.encodeWithSignature("getMarkPrice(uint256)", marketId)
         );
         require(success && data.length >= 32, "Mark price failed");
         return abi.decode(data, (uint256));

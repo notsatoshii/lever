@@ -22,7 +22,7 @@ contract BorrowFeeEngineV2 {
     // Rate bounds (18 decimals, per hour)
     uint256 public constant BASE_RATE = 2e14;      // 0.02% = 0.0002
     uint256 public constant MIN_RATE = 2e14;       // 0.02%
-    uint256 public constant MAX_RATE = 2e15;       // 0.20% = 0.002
+    uint256 public constant MAX_RATE = 1e15;       // 0.10% = 0.001 (per architecture)
     
     // Multiplier constants (18 decimals = 1.0)
     uint256 public constant SCALE = 1e18;

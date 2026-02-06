@@ -1,0 +1,52 @@
+
+╔════════════════════════════════════════════════════════════╗
+║     🔮 LEVER Price Keeper V3 - LIVE MARKETS EDITION        ║
+╚════════════════════════════════════════════════════════════╝
+
+  🔑 Keeper:      0x7928251fE2D52CBECDCe0Fe9551aD9BF798347bc
+  📍 PriceEngine: 0x32Fe76322105f7990aACF5C6E2E103Aba68d0CbC
+  📊 Markets:     10 (Top 10 by volume)
+  ⏱️  Interval:    30s
+
+  Markets:
+    1. Indiana Pacers NBA Finals (exp: 2026-07-01)
+    2. Patriots Super Bowl (exp: 2026-02-08)
+    3. Seahawks Super Bowl (exp: 2026-02-08)
+    4. Jesus before GTA VI (exp: 2026-07-31)
+    5. Celtics NBA Finals (exp: 2026-07-01)
+    6. Thunder NBA Finals (exp: 2026-07-01)
+    7. BTC $1M before GTA VI (exp: 2026-07-31)
+    8. van der Plas PM (exp: 2026-12-31)
+    9. GTA 6 $100+ (exp: 2026-02-28)
+    10. Timberwolves NBA Finals (exp: 2026-07-01)
+
+[2026-02-06 17:00:04] ────────────────────────────────────────
+  📈 Market 1 (Indiana Pacers NBA Finals):
+     Price: 0.15% (Δ0.00%) | Spread: 50bp | Liq: $388,365.175
+  📈 Market 2 (Patriots Super Bowl):
+     Price: 31.80% (Δ0.00%) | Spread: 50bp | Liq: $864,905.719
+  📈 Market 3 (Seahawks Super Bowl):
+     Price: 68.25% (Δ0.03%) | Spread: 50bp | Liq: $983,070.322
+  📈 Market 4 (Jesus before GTA VI):
+     Price: 48.50% (Δ0.00%) | Spread: 50bp | Liq: $464,449.257
+  📈 Market 5 (Celtics NBA Finals):
+     Price: 6.60% (Δ-0.75%) | Spread: 100bp | Liq: $97,341.61
+  📈 Market 6 (Thunder NBA Finals):
+     Price: 38.50% (Δ5.48%) | Spread: 50bp | Liq: $227,777.404
+  📈 Market 7 (BTC $1M before GTA VI):
+     Price: 48.50% (Δ0.00%) | Spread: 50bp | Liq: $191,137.712
+  📈 Market 8 (van der Plas PM):
+     Price: 0.10% (Δ0.00%) | Spread: 200bp | Liq: $11,134.037
+  📈 Market 9 (GTA 6 $100+):
+     Price: 1.05% (Δ10.53%) | Spread: 100bp | Liq: $81,232.914
+  📈 Market 10 (Timberwolves NBA Finals):
+     Price: 3.45% (Δ-4.96%) | Spread: 50bp | Liq: $158,255.063
+  📤 Submitting batch update for 10 markets...
+  ✅ Batch TX: 0x29d50e7654e237bd98... Block: 88814347
+  📊 Stats: 10 updates | 0 rejected
+
+[2026-02-06 17:00:13] ──── INTEREST ACCRUAL ────
+  📈 Market 1: Index 1.0000307095220737 → 1.0000397296493988 (+0.0009%)
+  📈 Market 2: Index 1.0000307928912064 → 1.0000416374190675 (+0.0011%)
+  📈 Market 3: Index 1.0000297026726468 → 1.000039445795622 (+0.0010%)
+  📈 Market 4: Index 1.0000095478409852 → 1.0000192907675953 (+0.0010%)

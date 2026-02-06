@@ -101,18 +101,17 @@ export function TradingPanel({ marketId, initialSide, polymarketPrice }: Trading
       return;
     }
 
-    const sizeMultiplier = BigInt(leverage) * 2n;
-    const size = collateralWei * sizeMultiplier;
-    const sizeDelta = side === 'long' ? size : -size;
-    const maxPrice = parseUnits('0.99', 18);
-    const minPrice = parseUnits('0.01', 18);
+    // RouterV4 uses: (marketId, isLong, collateralAmount, leverage, maxSlippage)
+    const isLong = side === 'long';
+    const leverageWei = parseUnits(leverage.toString(), 18); // e.g., 5x = 5e18
+    const maxSlippage = parseUnits('0.05', 18); // 5% max slippage
 
     try {
       openPosition({
         address: contracts.ROUTER as `0x${string}`,
         abi: ROUTER_ABI,
         functionName: 'openPosition',
-        args: [MARKET_ID, sizeDelta, collateralWei, maxPrice, minPrice],
+        args: [MARKET_ID, isLong, collateralWei, leverageWei, maxSlippage],
       }, {
         onSuccess: () => {
           showToast(`${side === 'long' ? 'Long' : 'Short'} position opened successfully!`, 'success');

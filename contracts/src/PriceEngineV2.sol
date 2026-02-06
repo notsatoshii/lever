@@ -184,19 +184,6 @@ contract PriceEngineV2 {
         marketConfigs[marketId].active = false;
     }
     
-    /**
-     * @notice Force set price (admin emergency override)
-     */
-    function forceSetPrice(uint256 marketId, uint256 price) external onlyOwner {
-        require(price > 0 && price <= PRECISION, "Invalid price");
-        
-        priceStates[marketId].rawPrice = price;
-        priceStates[marketId].smoothedPrice = price;
-        priceStates[marketId].lastUpdate = block.timestamp;
-        
-        emit PriceUpdated(marketId, price, price, 0, PRECISION, PRECISION);
-    }
-    
     // ============ Keeper Functions ============
     
     /**
@@ -418,6 +405,27 @@ contract PriceEngineV2 {
         config.active = false;
         
         emit MarketSettled(marketId, finalPrice);
+    }
+    
+    /**
+     * @notice Force set price (owner only, bypasses all validation)
+     * @dev ONLY for initial setup or emergency corrections
+     */
+    function forceSetPrice(uint256 marketId, uint256 price) external onlyOwner {
+        require(price > 0 && price <= PRECISION, "Invalid price");
+        require(marketConfigs[marketId].active, "Market not active");
+        
+        PriceState storage state = priceStates[marketId];
+        state.rawPrice = price;
+        state.smoothedPrice = price;
+        state.lastUpdate = block.timestamp;
+        state.volatility = 0;
+        
+        // Clear history
+        delete priceHistories[marketId];
+        _addToHistory(marketId, price);
+        
+        emit PriceUpdated(marketId, price, price, 0, PRECISION, PRECISION);
     }
     
     // ============ View Functions ============

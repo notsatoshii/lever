@@ -388,9 +388,9 @@ contract RiskEngineV2 {
             return abi.decode(data, (uint256));
         }
         
-        // Fallback: try getSmoothedPrice
+        // Fallback: try getMarkPrice
         (success, data) = priceEngine.staticcall(
-            abi.encodeWithSignature("getSmoothedPrice(uint256)", marketId)
+            abi.encodeWithSignature("getMarkPrice(uint256)", marketId)
         );
         
         require(success && data.length >= 32, "Failed to get mark price");

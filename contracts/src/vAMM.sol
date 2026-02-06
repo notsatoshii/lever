@@ -397,7 +397,7 @@ contract vAMM {
      */
     function _getOraclePI(uint256 marketId) internal view returns (uint256) {
         (bool success, bytes memory data) = priceEngine.staticcall(
-            abi.encodeWithSignature("getSmoothedPrice(uint256)", marketId)
+            abi.encodeWithSignature("getMarkPrice(uint256)", marketId)
         );
         require(success && data.length >= 32, "Failed to get PI");
         return abi.decode(data, (uint256));

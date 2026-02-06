@@ -80,12 +80,15 @@ export function PositionPanel({ marketId }: PositionPanelProps) {
       return;
     }
 
-    const sizeDelta = -(position.size as bigint); // Close entire position
+    // RouterV4 uses: (marketId, closePercent, minAmountOut)
+    const closePercent = BigInt(1e18); // 100% = 1e18
+    const minAmountOut = 0n; // No minimum for simplicity
+    
     closePosition({
       address: contracts.ROUTER as `0x${string}`,
       abi: ROUTER_ABI,
       functionName: 'closePosition',
-      args: [MARKET_ID, sizeDelta, 0n, BigInt(1e18)],
+      args: [MARKET_ID, closePercent, minAmountOut],
     });
   };
 

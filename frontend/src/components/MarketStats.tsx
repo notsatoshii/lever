@@ -4,18 +4,21 @@ import { useState, useEffect } from 'react';
 import { createPublicClient, http, formatUnits } from 'viem';
 import { bscTestnet } from 'viem/chains';
 import { CONTRACTS, PRICE_ENGINE_ABI, LEDGER_ABI, FUNDING_ENGINE_ABI } from '@/config/contracts';
+import { LEVER_MARKETS, getActiveMarkets, isExpiringSoon } from '@/config/markets';
 
 const client = createPublicClient({
   chain: bscTestnet,
   transport: http('https://data-seed-prebsc-1-s1.binance.org:8545'),
 });
 
-const MARKETS = [
-  { id: 0, name: 'Test Market', description: 'Initial test market' },
-  { id: 1, name: 'MicroStrategy BTC Sale', description: 'Will MicroStrategy sell Bitcoin?' },
-  { id: 2, name: 'Trump Deportations 250-500k', description: 'Trump deports 250k-500k in 2025' },
-  { id: 3, name: 'GTA 6 $100+', description: 'Will GTA 6 cost $100 or more?' },
-];
+// Use active markets from config
+const MARKETS = getActiveMarkets().map(m => ({
+  id: m.id,
+  name: m.name,
+  description: m.question,
+  icon: m.icon,
+  expiringSoon: isExpiringSoon(m),
+}));
 
 interface MarketStatsProps {
   selectedMarket: number;
@@ -93,13 +96,19 @@ export function MarketStats({ selectedMarket, onSelectMarket }: MarketStatsProps
           <button
             key={m.id}
             onClick={() => onSelectMarket(m.id)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
               selectedMarket === m.id
                 ? 'bg-green-600 text-white'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
           >
-            {m.name}
+            <span>{m.icon}</span>
+            <span>{m.name}</span>
+            {m.expiringSoon && (
+              <span className="px-1.5 py-0.5 text-xs bg-orange-500/20 text-orange-400 rounded">
+                Soon
+              </span>
+            )}
           </button>
         ))}
       </div>
