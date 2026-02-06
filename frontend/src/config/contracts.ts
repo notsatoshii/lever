@@ -3,12 +3,12 @@ export const CONTRACTS = {
   // BSC Testnet (Chain ID 97)
   97: {
     USDT: '0x0Fbe7F2C870636b1f3cFc6AD9d5767eb26A48F58',
-    LEDGER: '0x6738828760E8d2Eb8cD892c5a15Ad5d994d7995c',
+    LEDGER: '0xE865bD88ccf2f42D6cf9cC6deA04c702EF2585a3', // PositionLedgerV2
     PRICE_ENGINE: '0x74F964E2bda482Ae78834fF4F4FBC892E1b6Aa33',       // Old - for execution price
     PRICE_ENGINE_V2: '0x32Fe76322105f7990aACF5C6E2E103Aba68d0CbC',   // New - for mark price (PI)
     FUNDING_ENGINE: '0xa6Ec543C82c564F9Cdb9a7e7682C68A43D1af802',
-    RISK_ENGINE: '0x833D02521a41f175c389ec2A8c86F22E3de524DB',
-    ROUTER: '0x346D9eC78F8437c2aa32375584B959ccCDc843E1', // RouterV3 with complete fees
+    RISK_ENGINE: '0x5f696d1E0011C8cde0060C721335d2dF43198383', // RiskEngineV2 fixed
+    ROUTER: '0xa682e96A99C1CAf7b3FE45D2c20F108866a6AA23', // RouterV4 from DeployV2 (authorized on PositionLedgerV2)
     LP_POOL: '0x187d9CA1A112323a966C2BB1Ed05Fe436Aadd5C1',
     INSURANCE_FUND: '0xB8CA10ADbE4c0666eF701e0D0aeB27cFC5b81932',
     
@@ -31,10 +31,13 @@ export const USDT_ABI = [
 ] as const;
 
 export const ROUTER_ABI = [
-  { name: 'openPosition', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'sizeDelta', type: 'int256' }, { name: 'collateralAmount', type: 'uint256' }, { name: 'maxPrice', type: 'uint256' }, { name: 'minPrice', type: 'uint256' }], outputs: [] },
-  { name: 'closePosition', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'sizeDelta', type: 'int256' }, { name: 'minPrice', type: 'uint256' }, { name: 'maxPrice', type: 'uint256' }], outputs: [] },
-  { name: 'depositCollateral', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'amount', type: 'uint256' }], outputs: [] },
-  { name: 'withdrawCollateral', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'amount', type: 'uint256' }], outputs: [] },
+  // RouterV4 signatures
+  { name: 'openPosition', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'isLong', type: 'bool' }, { name: 'collateralAmount', type: 'uint256' }, { name: 'leverage', type: 'uint256' }, { name: 'maxSlippage', type: 'uint256' }], outputs: [{ name: 'positionSize', type: 'uint256' }, { name: 'entryPrice', type: 'uint256' }] },
+  { name: 'closePosition', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'closePercent', type: 'uint256' }, { name: 'minAmountOut', type: 'uint256' }], outputs: [{ name: 'pnl', type: 'int256' }, { name: 'amountOut', type: 'uint256' }] },
+  { name: 'addCollateral', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'amount', type: 'uint256' }], outputs: [] },
+  { name: 'removeCollateral', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'amount', type: 'uint256' }], outputs: [] },
+  { name: 'previewTrade', type: 'function', stateMutability: 'view', inputs: [{ name: 'marketId', type: 'uint256' }, { name: 'isLong', type: 'bool' }, { name: 'collateral', type: 'uint256' }, { name: 'leverage', type: 'uint256' }], outputs: [{ name: 'positionSize', type: 'uint256' }, { name: 'expectedEntryPrice', type: 'uint256' }, { name: 'markPrice', type: 'uint256' }, { name: 'priceImpact', type: 'uint256' }, { name: 'estimatedDailyFee', type: 'uint256' }] },
+  { name: 'getPositionDetails', type: 'function', stateMutability: 'view', inputs: [{ name: 'trader', type: 'address' }, { name: 'marketId', type: 'uint256' }], outputs: [{ name: 'size', type: 'int256' }, { name: 'entryPrice', type: 'uint256' }, { name: 'collateral', type: 'uint256' }, { name: 'markPrice', type: 'uint256' }, { name: 'unrealizedPnl', type: 'int256' }, { name: 'pendingFees', type: 'uint256' }, { name: 'equity', type: 'int256' }, { name: 'liquidationPrice', type: 'uint256' }] },
 ] as const;
 
 export const LEDGER_ABI = [
