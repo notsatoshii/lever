@@ -64,12 +64,12 @@ export function PositionPanel({ marketId }: PositionPanelProps) {
   }, [closeSuccess, refetch]);
 
   const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
+  const [lastTxHash, setLastTxHash] = useState<string | null>(null);
 
   const handleClose = async () => {
     if (!position?.size) return;
     
     try {
-      // Auto-update price before closing (testnet pattern)
       setIsUpdatingPrice(true);
       console.log('Ensuring fresh price for market', marketId);
       await ensureFreshPrice(marketId);
@@ -80,9 +80,8 @@ export function PositionPanel({ marketId }: PositionPanelProps) {
       return;
     }
 
-    // RouterV4 uses: (marketId, closePercent, minAmountOut)
-    const closePercent = BigInt(1e18); // 100% = 1e18
-    const minAmountOut = 0n; // No minimum for simplicity
+    const closePercent = BigInt(1e18);
+    const minAmountOut = 0n;
     
     closePosition({
       address: contracts.ROUTER as `0x${string}`,
@@ -91,6 +90,13 @@ export function PositionPanel({ marketId }: PositionPanelProps) {
       args: [MARKET_ID, closePercent, minAmountOut],
     });
   };
+
+  // Track TX hash
+  useEffect(() => {
+    if (closeHash) {
+      setLastTxHash(closeHash);
+    }
+  }, [closeHash]);
 
   const hasPosition = position?.size && position.size !== 0n;
   const isLong = position?.size > 0n;
@@ -119,100 +125,122 @@ export function PositionPanel({ marketId }: PositionPanelProps) {
   }
 
   return (
-    <div className="bg-gray-800 rounded-xl p-6 border border-gray-800">
-      <h2 className="text-lg font-semibold mb-4">Your Position</h2>
+    <div className="bg-gray-800 rounded-xl border border-gray-700">
+      <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+        <h3 className="font-semibold">Your Positions</h3>
+        <span className="text-xs text-gray-500">Market #{marketId}</span>
+      </div>
 
       {isLoading ? (
-        <div className="animate-pulse space-y-3">
-          <div className="h-6 bg-gray-700 rounded w-1/2"></div>
-          <div className="h-4 bg-gray-700 rounded w-2/3"></div>
+        <div className="p-4 space-y-2">
+          <div className="animate-pulse flex justify-between">
+            <div className="h-4 bg-gray-700 rounded w-1/4"></div>
+            <div className="h-4 bg-gray-700 rounded w-1/4"></div>
+          </div>
         </div>
       ) : !hasPosition ? (
-        <div className="text-center py-8 text-gray-500">
-          <p>No open position</p>
-          <p className="text-sm mt-1">Open a trade to get started</p>
+        <div className="p-6 text-center text-gray-500">
+          <svg className="w-8 h-8 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+          <p className="text-sm">No open positions</p>
+          <p className="text-xs text-gray-600 mt-1">Open a trade to get started</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {/* Position Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className={`px-2 py-1 rounded text-sm font-semibold ${
-                isLong ? 'bg-lever-green/20 text-lever-green' : 'bg-lever-red/20 text-lever-red'
-              }`}>
-                {isLong ? 'LONG' : 'SHORT'}
-              </span>
-              <span className="text-xl font-bold">
-                {Number(formatUnits(absSize, 18)).toLocaleString()} units
-              </span>
-            </div>
-            <div className={`text-xl font-bold ${pnlColor}`}>
-              {formatPnL(unrealizedPnL)}
-            </div>
-          </div>
-
-          {/* Position Details */}
-          <div className="grid grid-cols-2 gap-4 bg-gray-800 rounded-lg p-4">
+        <div className="overflow-x-auto">
+          {/* Position as list/table row */}
+          <table className="w-full text-sm">
+            <thead className="text-gray-500 text-xs border-b border-gray-700">
+              <tr>
+                <th className="text-left p-3">Side</th>
+                <th className="text-right p-3">Size</th>
+                <th className="text-right p-3">Entry</th>
+                <th className="text-right p-3">PnL</th>
+                <th className="text-right p-3">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-gray-700/50">
+                <td className="p-3">
+                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                    isLong ? 'bg-lever-green/20 text-lever-green' : 'bg-lever-red/20 text-lever-red'
+                  }`}>
+                    {isLong ? 'LONG' : 'SHORT'}
+                  </span>
+                </td>
+                <td className="p-3 text-right font-mono">
+                  {Number(formatUnits(absSize, 18)).toFixed(2)}
+                </td>
+                <td className="p-3 text-right">
+                  {formatPrice(position?.entryPrice)}
+                </td>
+                <td className={`p-3 text-right font-semibold ${pnlColor}`}>
+                  {formatPnL(unrealizedPnL)}
+                </td>
+                <td className="p-3 text-right">
+                  <button
+                    onClick={handleClose}
+                    disabled={isClosing || isUpdatingPrice}
+                    className="px-3 py-1.5 rounded text-xs font-semibold bg-red-600 hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUpdatingPrice ? '...' : isClosing ? 'Closing' : 'Close'}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          
+          {/* Position details below */}
+          <div className="p-4 border-t border-gray-700/50 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div>
-              <p className="text-gray-400 text-sm">Entry Price</p>
-              <p className="font-semibold">{formatPrice(position?.entryPrice)}</p>
+              <span className="text-gray-500">Mark Price</span>
+              <p className="font-medium">{formatPrice(markPrice)}</p>
             </div>
             <div>
-              <p className="text-gray-400 text-sm">Mark Price</p>
-              <p className="font-semibold">{formatPrice(markPrice)}</p>
-            </div>
-            <div>
-              <p className="text-gray-400 text-sm">Collateral</p>
-              <p className="font-semibold">
+              <span className="text-gray-500">Collateral</span>
+              <p className="font-medium">
                 {position?.collateral 
-                  ? `${Number(formatUnits(position.collateral, 18)).toLocaleString()} USDT`
+                  ? `${Number(formatUnits(position.collateral, 18)).toFixed(2)} USDT`
                   : '—'
                 }
               </p>
             </div>
             <div>
-              <p className="text-gray-400 text-sm">Leverage</p>
-              <p className="font-semibold">
-                {position?.collateral && position.collateral > 0n
-                  ? `${(Number(formatUnits(absSize, 18)) * Number(formatUnits(markPrice || 0n, 18)) / Number(formatUnits(position.collateral, 18))).toFixed(1)}x`
+              <span className="text-gray-500">Leverage</span>
+              <p className="font-medium">
+                {position?.collateral && position.collateral > 0n && markPrice
+                  ? `${(Number(formatUnits(absSize, 18)) * Number(formatUnits(markPrice, 18)) / Number(formatUnits(position.collateral, 18))).toFixed(1)}x`
+                  : '—'
+                }
+              </p>
+            </div>
+            <div>
+              <span className="text-gray-500">ROI</span>
+              <p className={`font-medium ${pnlColor}`}>
+                {unrealizedPnL !== undefined && position?.collateral && position.collateral > 0n
+                  ? `${((Number(unrealizedPnL) / Number(position.collateral)) * 100).toFixed(2)}%`
                   : '—'
                 }
               </p>
             </div>
           </div>
-
-          {/* PnL Bar */}
-          {unrealizedPnL !== undefined && position?.collateral && (
-            <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-400">ROI</span>
-                <span className={pnlColor}>
-                  {((Number(unrealizedPnL) / Number(position.collateral)) * 100).toFixed(2)}%
-                </span>
-              </div>
-              <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full ${unrealizedPnL >= 0n ? 'bg-lever-green' : 'bg-lever-red'}`}
-                  style={{ 
-                    width: `${Math.min(100, Math.abs(Number(unrealizedPnL) / Number(position.collateral) * 100))}%`
-                  }}
-                />
+          
+          {/* Show last TX hash if available */}
+          {lastTxHash && (
+            <div className="px-4 pb-4">
+              <div className="p-2 bg-gray-700/50 rounded text-xs">
+                <span className="text-gray-500">Last TX: </span>
+                <a 
+                  href={`https://testnet.bscscan.com/tx/${lastTxHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:underline font-mono"
+                >
+                  {lastTxHash.slice(0, 10)}...{lastTxHash.slice(-8)}
+                </a>
               </div>
             </div>
           )}
-
-          {/* Close Button */}
-          <button
-            onClick={handleClose}
-            disabled={isClosing || isUpdatingPrice}
-            className="w-full py-3 rounded-lg font-semibold bg-gray-700 hover:bg-gray-600 disabled:opacity-50"
-          >
-            {isUpdatingPrice 
-              ? 'Updating price...' 
-              : isClosing 
-                ? 'Closing...' 
-                : 'Close Position'}
-          </button>
         </div>
       )}
     </div>

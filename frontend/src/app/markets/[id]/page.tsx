@@ -16,19 +16,94 @@ const client = createPublicClient({
   transport: http('https://data-seed-prebsc-1-s1.binance.org:8545'),
 });
 
-// Recent trades - would come from indexer in production
-function RecentTrades() {
+// Recent trades component - fetches from blockchain events
+function RecentTrades({ marketId }: { marketId: number }) {
+  const [trades, setTrades] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // TODO: Fetch actual trade events from blockchain/indexer
+    // For now, simulate loading and show placeholder
+    const fetchTrades = async () => {
+      setIsLoading(true);
+      try {
+        // In production: fetch from subgraph or indexer
+        // const response = await fetch(`/api/trades?marketId=${marketId}`);
+        // const data = await response.json();
+        // setTrades(data);
+        
+        // Placeholder - no trades yet
+        setTrades([]);
+      } catch (e) {
+        console.error('Failed to fetch trades:', e);
+      }
+      setIsLoading(false);
+    };
+    fetchTrades();
+    const interval = setInterval(fetchTrades, 30000);
+    return () => clearInterval(interval);
+  }, [marketId]);
+
   return (
-    <div className="bg-gray-800 rounded-xl border border-gray-700 h-full">
-      <div className="p-4 border-b border-gray-700">
+    <div className="bg-gray-800 rounded-xl border border-gray-700">
+      <div className="p-4 border-b border-gray-700 flex justify-between items-center">
         <h3 className="font-semibold">Recent Trades</h3>
+        <span className="text-xs text-gray-500">Market #{marketId}</span>
       </div>
-      <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
-        <div className="text-center">
-          <p>No trades yet</p>
+      
+      {isLoading ? (
+        <div className="p-4 space-y-2">
+          {[1,2,3].map(i => (
+            <div key={i} className="animate-pulse flex justify-between">
+              <div className="h-4 bg-gray-700 rounded w-1/4"></div>
+              <div className="h-4 bg-gray-700 rounded w-1/4"></div>
+              <div className="h-4 bg-gray-700 rounded w-1/4"></div>
+            </div>
+          ))}
+        </div>
+      ) : trades.length === 0 ? (
+        <div className="p-6 text-center text-gray-500">
+          <svg className="w-8 h-8 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          <p className="text-sm">No trades yet</p>
           <p className="text-xs text-gray-600 mt-1">Be the first to trade!</p>
         </div>
-      </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-gray-500 text-xs border-b border-gray-700">
+              <tr>
+                <th className="text-left p-3">Time</th>
+                <th className="text-left p-3">Side</th>
+                <th className="text-right p-3">Size</th>
+                <th className="text-right p-3">Price</th>
+                <th className="text-right p-3">TX</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trades.map((trade, i) => (
+                <tr key={i} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                  <td className="p-3 text-gray-400">{trade.time}</td>
+                  <td className={`p-3 font-medium ${trade.side === 'LONG' ? 'text-lever-green' : 'text-lever-red'}`}>
+                    {trade.side}
+                  </td>
+                  <td className="p-3 text-right">{trade.size}</td>
+                  <td className="p-3 text-right">{trade.price}</td>
+                  <td className="p-3 text-right">
+                    <a href={`https://testnet.bscscan.com/tx/${trade.txHash}`} 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       className="text-blue-400 hover:underline font-mono">
+                      {trade.txHash?.slice(0, 8)}...
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -250,32 +325,37 @@ export default function MarketPage() {
         </div>
       )}
 
-      {/* Main Content - Responsive Layout */}
+      {/* Main Content - New Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Chart - Full width on mobile, 7 cols on desktop */}
-        <div className="lg:col-span-7">
+        
+        {/* Left side: Chart + Below-chart panels */}
+        <div className="lg:col-span-9 space-y-4">
+          {/* Chart - Full width */}
           <PriceChart 
             marketId={marketId} 
             polymarketPrice={displayPrice}
             marketQuestion={marketConfig?.question}
           />
-        </div>
-
-        {/* Recent Trades - Hidden on mobile, 2 cols on desktop */}
-        <div className="hidden lg:block lg:col-span-2">
-          <RecentTrades />
-        </div>
-
-        {/* Trading Panel - Full width on mobile, 3 cols on desktop */}
-        <div className="lg:col-span-3 space-y-4">
-          <TradingPanel 
-            marketId={marketId} 
-            initialSide={initialSide || undefined}
-            polymarketPrice={displayPrice}
-          />
           
-          {/* Position Panel - Shows current position with close button */}
-          <PositionPanel marketId={marketId} />
+          {/* Below Chart: Recent Trades + Positions (horizontal) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Recent Trades */}
+            <RecentTrades marketId={marketId} />
+            
+            {/* Positions List */}
+            <PositionPanel marketId={marketId} />
+          </div>
+        </div>
+
+        {/* Right side: Trading Panel */}
+        <div className="lg:col-span-3">
+          <div className="sticky top-4">
+            <TradingPanel 
+              marketId={marketId} 
+              initialSide={initialSide || undefined}
+              polymarketPrice={displayPrice}
+            />
+          </div>
         </div>
       </div>
     </div>
