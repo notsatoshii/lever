@@ -2,12 +2,16 @@
  * Polymarket → LEVER Price Keeper V3
  * 
  * Updated 2026-02-06: Top 10 LIVE markets by volume
+ * Fixed 2026-02-06 20:45 UTC: Market IDs 0-9 (was 1-10), added dotenv
  * 
  * Implements the Anti-Manipulation Shield from the architecture:
  * 1. Fetches raw prices from Polymarket
  * 2. Validates: spread, tick movement, liquidity depth
  * 3. Submits to PriceEngineV2 for smoothing (volatility + time-weighted)
  */
+
+import dotenv from 'dotenv';
+dotenv.config();
 
 import { createWalletClient, createPublicClient, http, parseUnits, formatUnits } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -33,63 +37,64 @@ interface MarketConfig {
   expiry: number;
 }
 
+// IMPORTANT: Market IDs are 0-9 after LedgerV3 migration (was 1-10)
 const MARKET_MAPPINGS: MarketConfig[] = [
   { 
-    id: 1, 
+    id: 0, 
     name: 'Indiana Pacers NBA Finals', 
     slug: 'will-the-indiana-pacers-win-the-2026-nba-finals',
     expiry: 1782864000  // 2026-07-01
   },
   { 
-    id: 2, 
+    id: 1, 
     name: 'Patriots Super Bowl', 
     slug: 'will-the-new-england-patriots-win-super-bowl-2026',
     expiry: 1770552000  // 2026-02-08
   },
   { 
-    id: 3, 
+    id: 2, 
     name: 'Seahawks Super Bowl', 
     slug: 'will-the-seattle-seahawks-win-super-bowl-2026',
     expiry: 1770552000  // 2026-02-08
   },
   { 
-    id: 4, 
+    id: 3, 
     name: 'Jesus before GTA VI', 
     slug: 'will-jesus-christ-return-before-gta-vi-665',
     expiry: 1785499200  // 2026-07-31
   },
   { 
-    id: 5, 
+    id: 4, 
     name: 'Celtics NBA Finals', 
     slug: 'will-the-boston-celtics-win-the-2026-nba-finals',
     expiry: 1782864000  // 2026-07-01
   },
   { 
-    id: 6, 
+    id: 5, 
     name: 'Thunder NBA Finals', 
     slug: 'will-the-oklahoma-city-thunder-win-the-2026-nba-finals',
     expiry: 1782864000  // 2026-07-01
   },
   { 
-    id: 7, 
+    id: 6, 
     name: 'BTC $1M before GTA VI', 
     slug: 'will-bitcoin-hit-1m-before-gta-vi-872',
     expiry: 1785499200  // 2026-07-31
   },
   { 
-    id: 8, 
+    id: 7, 
     name: 'van der Plas PM', 
     slug: 'will-caroline-van-der-plas-become-the-next-prime-minister-of-the-netherlands',
     expiry: 1798675200  // 2026-12-31
   },
   { 
-    id: 9, 
+    id: 8, 
     name: 'GTA 6 $100+', 
     slug: 'will-gta-6-cost-100',
     expiry: 1772280000  // 2026-02-28
   },
   { 
-    id: 10, 
+    id: 9, 
     name: 'Timberwolves NBA Finals', 
     slug: 'will-the-minnesota-timberwolves-win-the-2026-nba-finals',
     expiry: 1782864000  // 2026-07-01

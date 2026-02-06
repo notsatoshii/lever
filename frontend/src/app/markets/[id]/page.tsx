@@ -111,7 +111,7 @@ function RecentTrades({ marketId }: { marketId: number }) {
 export default function MarketPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const marketId = Number(params.id) || 1;
+  const marketId = Number(params.id) ?? 0; // Default to market 0
   const polymarketSlug = searchParams.get('polymarket');
   const initialSide = searchParams.get('side') as 'long' | 'short' | null;
   

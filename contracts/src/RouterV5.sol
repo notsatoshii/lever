@@ -39,6 +39,13 @@ contract RouterV5 {
     address public riskEngine;          // Margin checks
     address public borrowFeeEngine;     // Fee calculations
     address public lpPool;              // Liquidity pool
+    address public insuranceFund;       // 20% of fees
+    address public protocolTreasury;    // 30% of fees
+    
+    // Fee splits (in basis points, total must = 10000)
+    uint256 public constant FEE_LP_BPS = 5000;       // 50% to LP
+    uint256 public constant FEE_PROTOCOL_BPS = 3000; // 30% to protocol
+    uint256 public constant FEE_INSURANCE_BPS = 2000; // 20% to insurance
     
     // Trading enabled
     bool public tradingEnabled;
@@ -130,6 +137,11 @@ contract RouterV5 {
         lpPool = _lpPool;
         
         emit ContractsUpdated(_vAMM, _priceEngine, _positionLedger, _riskEngine, _borrowFeeEngine, _lpPool);
+    }
+    
+    function setFeeRecipients(address _insuranceFund, address _protocolTreasury) external onlyOwner {
+        insuranceFund = _insuranceFund;
+        protocolTreasury = _protocolTreasury;
     }
     
     function setTradingEnabled(bool enabled) external onlyOwner {
@@ -350,16 +362,31 @@ contract RouterV5 {
      * @notice Route collected fees to LP pool
      */
     function _routeFeesToLP(uint256 amount) internal {
-        if (lpPool == address(0) || amount == 0) return;
+        if (amount == 0) return;
         
-        // Transfer fees to LP pool and register them
-        IERC20(collateralToken).transfer(lpPool, amount);
+        // Split fees: 50% LP, 30% protocol, 20% insurance
+        uint256 lpAmount = (amount * FEE_LP_BPS) / 10000;
+        uint256 protocolAmount = (amount * FEE_PROTOCOL_BPS) / 10000;
+        uint256 insuranceAmount = amount - lpAmount - protocolAmount; // Remainder to insurance
         
-        try ILPPool(lpPool).addFees(amount) {
-            emit FeesRouted(amount, lpPool);
-        } catch {
-            // Fee registration failed - funds are in LP pool but not tracked
-            // This is recoverable via admin function
+        // Route to LP pool (50%)
+        if (lpPool != address(0) && lpAmount > 0) {
+            IERC20(collateralToken).transfer(lpPool, lpAmount);
+            try ILPPool(lpPool).addFees(lpAmount) {
+                emit FeesRouted(lpAmount, lpPool);
+            } catch {}
+        }
+        
+        // Route to protocol treasury (30%)
+        if (protocolTreasury != address(0) && protocolAmount > 0) {
+            IERC20(collateralToken).transfer(protocolTreasury, protocolAmount);
+            emit FeesRouted(protocolAmount, protocolTreasury);
+        }
+        
+        // Route to insurance fund (20%)
+        if (insuranceFund != address(0) && insuranceAmount > 0) {
+            IERC20(collateralToken).transfer(insuranceFund, insuranceAmount);
+            emit FeesRouted(insuranceAmount, insuranceFund);
         }
     }
     

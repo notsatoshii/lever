@@ -7,6 +7,7 @@
     "dev": "npx tsx watch price-keeper.ts"
   },
   "dependencies": {
+    "dotenv": "^17.2.4",
     "viem": "^2.7.0"
   },
   "devDependencies": {

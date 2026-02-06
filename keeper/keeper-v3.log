@@ -1,4 +1,24 @@
 
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'dotenv' imported from /home/clawdbot/clawd/keeper/polymarket-keeper-v3.ts
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:314:9)
+    at packageResolve (node:internal/modules/esm/resolve:767:81)
+    at moduleResolve (node:internal/modules/esm/resolve:853:18)
+    at defaultResolve (node:internal/modules/esm/resolve:983:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolveBase (file:///home/clawdbot/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770410830256:2:3744)
+    at resolveDirectory (file:///home/clawdbot/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770410830256:2:4243)
+    at resolveTsPaths (file:///home/clawdbot/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770410830256:2:4984)
+    at resolve (file:///home/clawdbot/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/esm/index.mjs?1770410830256:2:5361)
+    at nextResolve (node:internal/modules/esm/hooks:748:28) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v22.22.0
+[dotenv@17.2.4] injecting env (1) from .env -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+
 ╔════════════════════════════════════════════════════════════╗
 ║     🔮 LEVER Price Keeper V3 - LIVE MARKETS EDITION        ║
 ╚════════════════════════════════════════════════════════════╝
@@ -9,46 +29,41 @@
   ⏱️  Interval:    30s
 
   Markets:
-    1. Indiana Pacers NBA Finals (exp: 2026-07-01)
-    2. Patriots Super Bowl (exp: 2026-02-08)
-    3. Seahawks Super Bowl (exp: 2026-02-08)
-    4. Jesus before GTA VI (exp: 2026-07-31)
-    5. Celtics NBA Finals (exp: 2026-07-01)
-    6. Thunder NBA Finals (exp: 2026-07-01)
-    7. BTC $1M before GTA VI (exp: 2026-07-31)
-    8. van der Plas PM (exp: 2026-12-31)
-    9. GTA 6 $100+ (exp: 2026-02-28)
-    10. Timberwolves NBA Finals (exp: 2026-07-01)
+    0. Indiana Pacers NBA Finals (exp: 2026-07-01)
+    1. Patriots Super Bowl (exp: 2026-02-08)
+    2. Seahawks Super Bowl (exp: 2026-02-08)
+    3. Jesus before GTA VI (exp: 2026-07-31)
+    4. Celtics NBA Finals (exp: 2026-07-01)
+    5. Thunder NBA Finals (exp: 2026-07-01)
+    6. BTC $1M before GTA VI (exp: 2026-07-31)
+    7. van der Plas PM (exp: 2026-12-31)
+    8. GTA 6 $100+ (exp: 2026-02-28)
+    9. Timberwolves NBA Finals (exp: 2026-07-01)
 
-[2026-02-06 17:00:04] ────────────────────────────────────────
-  📈 Market 1 (Indiana Pacers NBA Finals):
-     Price: 0.15% (Δ0.00%) | Spread: 50bp | Liq: $388,365.175
-  📈 Market 2 (Patriots Super Bowl):
-     Price: 31.80% (Δ0.00%) | Spread: 50bp | Liq: $864,905.719
-  📈 Market 3 (Seahawks Super Bowl):
-     Price: 68.25% (Δ0.03%) | Spread: 50bp | Liq: $983,070.322
-  📈 Market 4 (Jesus before GTA VI):
-     Price: 48.50% (Δ0.00%) | Spread: 50bp | Liq: $464,449.257
-  📈 Market 5 (Celtics NBA Finals):
-     Price: 6.60% (Δ-0.75%) | Spread: 100bp | Liq: $97,341.61
-  📈 Market 6 (Thunder NBA Finals):
-     Price: 38.50% (Δ5.48%) | Spread: 50bp | Liq: $227,777.404
-  📈 Market 7 (BTC $1M before GTA VI):
-     Price: 48.50% (Δ0.00%) | Spread: 50bp | Liq: $191,137.712
-  📈 Market 8 (van der Plas PM):
-     Price: 0.10% (Δ0.00%) | Spread: 200bp | Liq: $11,134.037
-  📈 Market 9 (GTA 6 $100+):
-     Price: 1.05% (Δ10.53%) | Spread: 100bp | Liq: $81,232.914
-  📈 Market 10 (Timberwolves NBA Finals):
-     Price: 3.45% (Δ-4.96%) | Spread: 50bp | Liq: $158,255.063
+[2026-02-06 20:47:48] ────────────────────────────────────────
+  📈 Market 0 (Indiana Pacers NBA Finals):
+     Price: 0.15% (ΔNEW%) | Spread: 50bp | Liq: $387,882.343
+  📈 Market 1 (Patriots Super Bowl):
+     Price: 31.75% (Δ21066.67%) | Spread: 50bp | Liq: $882,316.649
+  📈 Market 2 (Seahawks Super Bowl):
+     Price: 68.25% (Δ109.10%) | Spread: 50bp | Liq: $1,008,010.12
+  📈 Market 3 (Jesus before GTA VI):
+     Price: 48.50% (Δ-28.38%) | Spread: 50bp | Liq: $465,386.603
+  📈 Market 4 (Celtics NBA Finals):
+     Price: 6.20% (Δ-87.22%) | Spread: 50bp | Liq: $112,652.826
+  📈 Market 5 (Thunder NBA Finals):
+     Price: 38.50% (Δ460.54%) | Spread: 50bp | Liq: $242,034.367
+  📈 Market 6 (BTC $1M before GTA VI):
+     Price: 48.50% (Δ22.80%) | Spread: 50bp | Liq: $189,763.924
+  📈 Market 7 (van der Plas PM):
+     Price: 0.30% (Δ-99.38%) | Spread: 200bp | Liq: $14,745.762
+  📈 Market 8 (GTA 6 $100+):
+     Price: 1.00% (Δ900.00%) | Spread: 100bp | Liq: $85,375.03
+  📈 Market 9 (Timberwolves NBA Finals):
+     Price: 3.50% (Δ268.40%) | Spread: 50bp | Liq: $156,776.085
   📤 Submitting batch update for 10 markets...
-  ✅ Batch TX: 0x29d50e7654e237bd98... Block: 88814347
+  ✅ Batch TX: 0xe874e62c770cb62ba5... Block: 88844709
   📊 Stats: 10 updates | 0 rejected
 
-[2026-02-06 17:00:13] ──── INTEREST ACCRUAL ────
-  📈 Market 1: Index 1.0000307095220737 → 1.0000397296493988 (+0.0009%)
-  📈 Market 2: Index 1.0000307928912064 → 1.0000416374190675 (+0.0011%)
-  📈 Market 3: Index 1.0000297026726468 → 1.000039445795622 (+0.0010%)
-  📈 Market 4: Index 1.0000095478409852 → 1.0000192907675953 (+0.0010%)
-❌ KEEPER_PRIVATE_KEY not set
-Usage: KEEPER_PRIVATE_KEY=0x... npx ts-node polymarket-keeper-v3.ts
+[2026-02-06 20:47:55] ──── INTEREST ACCRUAL ────
+  📈 Market 0: Index 1.0000655235286655 → 1.0000655599973158 (+0.0000%)

@@ -252,8 +252,8 @@ export default function PortfolioPage() {
       }
 
       try {
-        // Fetch positions for markets 1-10
-        const positionPromises = Array.from({ length: 10 }, (_, i) => i + 1).map(async (id) => {
+        // Fetch positions for markets 0-9 (LedgerV3)
+        const positionPromises = Array.from({ length: 10 }, (_, i) => i).map(async (id) => {
           try {
             const [pos, price] = await Promise.all([
               client.readContract({

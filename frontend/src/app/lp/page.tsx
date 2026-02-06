@@ -332,7 +332,7 @@ export default function LPPage() {
             <div className="w-full bg-gray-700 rounded-full h-4 mb-2">
               <div
                 className="bg-gradient-to-r from-green-500 to-yellow-500 h-4 rounded-full transition-all"
-                style={{ width: `${Math.min(utilizationPercent, 100)}%` }}
+                style={{ width: `${Math.min(realUtilizationPercent, 100)}%` }}
               />
             </div>
             <div className="flex justify-between text-xs text-gray-500">

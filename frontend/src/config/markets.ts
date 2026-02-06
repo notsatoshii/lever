@@ -1,6 +1,6 @@
 // LEVER Protocol Markets Configuration
 // Maps on-chain market IDs to Polymarket slugs and metadata
-// Last updated: 2026-02-06 - Top 10 LIVE markets by volume
+// Last updated: 2026-02-06 - Migrated to LedgerV3 (markets 0-9)
 
 export interface MarketConfig {
   id: number;
@@ -14,10 +14,10 @@ export interface MarketConfig {
 }
 
 // On-chain markets with their Polymarket mappings
-// Deployed: 2026-02-06 via deploy-markets.ts
+// IMPORTANT: Market IDs changed from 1-10 to 0-9 after LedgerV3 migration
 export const LEVER_MARKETS: MarketConfig[] = [
   {
-    id: 1,
+    id: 0,
     name: 'Indiana Pacers NBA',
     question: 'Will the Indiana Pacers win the 2026 NBA Finals?',
     slug: 'will-the-indiana-pacers-win-the-2026-nba-finals',
@@ -27,7 +27,7 @@ export const LEVER_MARKETS: MarketConfig[] = [
     expiry: '2026-07-01',
   },
   {
-    id: 2,
+    id: 1,
     name: 'Patriots Super Bowl',
     question: 'Will the New England Patriots win Super Bowl 2026?',
     slug: 'will-the-new-england-patriots-win-super-bowl-2026',
@@ -37,7 +37,7 @@ export const LEVER_MARKETS: MarketConfig[] = [
     expiry: '2026-02-08', // 2 days!
   },
   {
-    id: 3,
+    id: 2,
     name: 'Seahawks Super Bowl',
     question: 'Will the Seattle Seahawks win Super Bowl 2026?',
     slug: 'will-the-seattle-seahawks-win-super-bowl-2026',
@@ -47,7 +47,7 @@ export const LEVER_MARKETS: MarketConfig[] = [
     expiry: '2026-02-08', // 2 days!
   },
   {
-    id: 4,
+    id: 3,
     name: 'Jesus/GTA VI',
     question: 'Will Jesus Christ return before GTA VI?',
     slug: 'will-jesus-christ-return-before-gta-vi-665',
@@ -57,7 +57,7 @@ export const LEVER_MARKETS: MarketConfig[] = [
     expiry: '2026-07-31',
   },
   {
-    id: 5,
+    id: 4,
     name: 'Celtics NBA',
     question: 'Will the Boston Celtics win the 2026 NBA Finals?',
     slug: 'will-the-boston-celtics-win-the-2026-nba-finals',
@@ -67,7 +67,7 @@ export const LEVER_MARKETS: MarketConfig[] = [
     expiry: '2026-07-01',
   },
   {
-    id: 6,
+    id: 5,
     name: 'Thunder NBA',
     question: 'Will the Oklahoma City Thunder win the 2026 NBA Finals?',
     slug: 'will-the-oklahoma-city-thunder-win-the-2026-nba-finals',
@@ -77,7 +77,7 @@ export const LEVER_MARKETS: MarketConfig[] = [
     expiry: '2026-07-01',
   },
   {
-    id: 7,
+    id: 6,
     name: 'BTC $1M/GTA VI',
     question: 'Will Bitcoin hit $1M before GTA VI?',
     slug: 'will-bitcoin-hit-1m-before-gta-vi-872',
@@ -87,7 +87,7 @@ export const LEVER_MARKETS: MarketConfig[] = [
     expiry: '2026-07-31',
   },
   {
-    id: 8,
+    id: 7,
     name: 'van der Plas PM',
     question: 'Will Caroline van der Plas become the next Prime Minister of the Netherlands?',
     slug: 'will-caroline-van-der-plas-become-the-next-prime-minister-of-the-netherlands',
@@ -97,7 +97,7 @@ export const LEVER_MARKETS: MarketConfig[] = [
     expiry: '2026-12-31',
   },
   {
-    id: 9,
+    id: 8,
     name: 'GTA 6 $100+',
     question: 'Will GTA 6 cost $100+?',
     slug: 'will-gta-6-cost-100',
@@ -107,7 +107,7 @@ export const LEVER_MARKETS: MarketConfig[] = [
     expiry: '2026-02-28',
   },
   {
-    id: 10,
+    id: 9,
     name: 'Timberwolves NBA',
     question: 'Will the Minnesota Timberwolves win the 2026 NBA Finals?',
     slug: 'will-the-minnesota-timberwolves-win-the-2026-nba-finals',

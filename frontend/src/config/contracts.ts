@@ -7,8 +7,9 @@ export const CONTRACTS = {
     USDT: '0x0Fbe7F2C870636b1f3cFc6AD9d5767eb26A48F58',
     
     // Main contracts (current deployment)
-    ROUTER: '0x90f2e2dad537f8f8eaa9d659538b26cb4bb5eea0',       // RouterV5 - LP integration
-    LEDGER: '0x6fd251dec261512f758768447489855e215352db',       // PositionLedgerV3
+    ROUTER: '0xee92ef898a0eabca96cad863cb0303b6d13cc023',       // RouterV5 - fee split 50/30/20
+    LEDGER: '0x74b24940c76c53cb0e9f0194cc79f6c08cf79f73',       // PositionLedgerV3 (markets 0-9, migrated)
+    // IMPORTANT: Market IDs are now 0-9 (old 1-10 → new 0-9)
     VAMM: '0xab015ae92092996ad3dc95a8874183c0fb5f9938',         // vAMM (entry price)
     PRICE_ENGINE: '0x32Fe76322105f7990aACF5C6E2E103Aba68d0CbC', // PriceEngineV2 (smoothed PI)
     RISK_ENGINE: '0x543ccad81a2eded2dc785272fcba899512a161b4',  // SimpleRiskEngine
