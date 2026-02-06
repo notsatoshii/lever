@@ -50,3 +50,5 @@
   📈 Market 2: Index 1.0000307928912064 → 1.0000416374190675 (+0.0011%)
   📈 Market 3: Index 1.0000297026726468 → 1.000039445795622 (+0.0010%)
   📈 Market 4: Index 1.0000095478409852 → 1.0000192907675953 (+0.0010%)
+❌ KEEPER_PRIVATE_KEY not set
+Usage: KEEPER_PRIVATE_KEY=0x... npx ts-node polymarket-keeper-v3.ts
