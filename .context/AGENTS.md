@@ -245,3 +245,16 @@ curl -s -X POST "https://api.notion.com/v1/databases/2fcc1ccc-fbef-81f1-a5e7-da2
 ## Make It Yours
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
+
+## 🚨 Mistakes to Never Repeat
+
+### Mock Data Disaster (2026-02-06)
+- Shipped frontend with hardcoded "mock" market data that looked real
+- Wrong dates (2025 when it's 2026), wrong token names (USDC vs USDT), fake stats
+- Eric had to find these issues instead of me catching them proactively
+
+**Rules:**
+1. NEVER use mock data without clearly labeling it "[MOCK]" or "[TESTNET DEMO]"
+2. If data should come from an API, integrate the API FIRST before building UI
+3. Audit ALL user-facing data before showing to Eric
+4. Proactively find UX issues - don't wait to be told

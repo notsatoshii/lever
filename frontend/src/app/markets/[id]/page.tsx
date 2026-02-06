@@ -16,56 +16,27 @@ const client = createPublicClient({
 });
 
 const MARKETS: Record<number, { name: string; question: string; icon: string }> = {
-  0: { name: 'Test Market', question: 'Initial test market', icon: '🧪' },
-  1: { name: 'MicroStrategy', question: 'Will MicroStrategy sell Bitcoin before end of 2025?', icon: '🪙' },
-  2: { name: 'Deportations', question: 'Trump deports 250k-500k people in 2025?', icon: '🇺🇸' },
-  3: { name: 'GTA 6', question: 'Will GTA 6 cost $100 or more at launch?', icon: '🎮' },
-  4: { name: 'Fed Rate', question: 'Will the Fed decrease interest rates by 25 bps after March 2026?', icon: '🏦' },
-  5: { name: 'Arsenal', question: 'Will Arsenal win the 2025-26 English Premier League?', icon: '⚽' },
-  6: { name: 'ETH', question: 'Will ETH exceed $10,000 in 2025?', icon: '💎' },
+  0: { name: 'Test Market', question: 'Testnet demo market', icon: '🧪' },
+  1: { name: 'BTC $150K', question: 'Will Bitcoin exceed $150,000 by end of 2026?', icon: '₿' },
+  2: { name: 'Fed Rate Cut', question: 'Will the Fed cut rates by 50+ bps in 2026?', icon: '🏦' },
+  3: { name: 'ETH Flippening', question: 'Will ETH market cap exceed BTC in 2026?', icon: '💎' },
+  4: { name: 'US Recession', question: 'Will the US enter a recession in 2026?', icon: '📉' },
+  5: { name: 'Champions League', question: 'Will Real Madrid win Champions League 2026?', icon: '⚽' },
+  6: { name: 'SOL $500', question: 'Will Solana exceed $500 in 2026?', icon: '◎' },
 };
 
-// Mock recent trades
+// Recent trades - would come from indexer in production
 function RecentTrades() {
-  const [trades, setTrades] = useState<Array<{price: number; size: number; time: string; side: 'buy' | 'sell'}>>([]);
-
-  useEffect(() => {
-    // Generate mock trades
-    const mockTrades = Array.from({ length: 20 }, (_, i) => ({
-      price: 45 + Math.random() * 10,
-      size: Math.floor(Math.random() * 1000),
-      time: new Date(Date.now() - i * 60000).toLocaleTimeString(),
-      side: Math.random() > 0.5 ? 'buy' as const : 'sell' as const,
-    }));
-    setTrades(mockTrades);
-  }, []);
-
   return (
     <div className="bg-gray-800 rounded-xl border border-gray-700 h-full">
       <div className="p-4 border-b border-gray-700">
         <h3 className="font-semibold">Recent Trades</h3>
       </div>
-      <div className="overflow-y-auto max-h-[500px]">
-        <table className="w-full text-sm">
-          <thead className="text-gray-500 text-xs sticky top-0 bg-gray-800">
-            <tr>
-              <th className="text-left p-2">Price</th>
-              <th className="text-right p-2">Size</th>
-              <th className="text-right p-2">Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            {trades.map((trade, i) => (
-              <tr key={i} className="border-t border-gray-700/50">
-                <td className={`p-2 ${trade.side === 'buy' ? 'text-green-400' : 'text-red-400'}`}>
-                  {trade.price.toFixed(1)}¢
-                </td>
-                <td className="p-2 text-right">{trade.size}</td>
-                <td className="p-2 text-right text-gray-500">{trade.time}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="flex items-center justify-center h-48 text-gray-500 text-sm">
+        <div className="text-center">
+          <p>No trades yet</p>
+          <p className="text-xs text-gray-600 mt-1">Be the first to trade!</p>
+        </div>
       </div>
     </div>
   );
@@ -164,8 +135,8 @@ export default function MarketPage() {
           <p className="text-xl font-bold">{isLoading ? '—' : formatPrice(price)}</p>
         </div>
         <div>
-          <span className="text-gray-500 text-sm">24h Change</span>
-          <p className="text-lg font-semibold text-red-400">-1.00%</p>
+          <span className="text-gray-500 text-sm">No Price</span>
+          <p className="text-lg font-semibold">{isLoading || !price ? '—' : `${(100 - Number(formatUnits(price, 18)) * 100).toFixed(1)}¢`}</p>
         </div>
         <div>
           <span className="text-gray-500 text-sm">OI (L/S)</span>
@@ -176,21 +147,18 @@ export default function MarketPage() {
           </p>
         </div>
         <div>
-          <span className="text-gray-500 text-sm">Volume</span>
-          <p className="text-lg font-semibold">$12.3K</p>
-        </div>
-        <div>
-          <span className="text-gray-500 text-sm">Funding</span>
+          <span className="text-gray-500 text-sm">Funding Rate</span>
           <p className={`text-lg font-semibold ${fundingRate && fundingRate > 0n ? 'text-green-400' : 'text-red-400'}`}>
             {formatFunding(fundingRate)}
           </p>
         </div>
         <div>
-          <span className="text-gray-500 text-sm">Expiring</span>
-          <p className="text-lg font-semibold flex items-center gap-1">
-            <span className="text-red-400">🕐</span>
-            <span className="text-sm lg:text-base">2d: 06h: 11m</span>
-          </p>
+          <span className="text-gray-500 text-sm">Max Leverage</span>
+          <p className="text-lg font-semibold">5x</p>
+        </div>
+        <div>
+          <span className="text-gray-500 text-sm">Status</span>
+          <p className="text-lg font-semibold text-green-400">Live</p>
         </div>
       </div>
 

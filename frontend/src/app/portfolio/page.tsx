@@ -134,7 +134,7 @@ export default function PortfolioPage() {
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-5">
           <p className="text-gray-400 text-sm mb-1">Unrealized PnL</p>
           <p className={`text-2xl font-bold ${totalUnrealizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {totalUnrealizedPnL >= 0 ? '+' : ''}{totalUnrealizedPnL.toFixed(2)} USDC
+            {totalUnrealizedPnL >= 0 ? '+' : ''}{totalUnrealizedPnL.toFixed(2)} USDT
           </p>
         </div>
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-5">

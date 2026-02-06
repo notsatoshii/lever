@@ -28,7 +28,7 @@ export function TradingPanel({ marketId, initialSide }: TradingPanelProps) {
 
   const leverageOptions = [2, 3, 4, 5];
 
-  // Read USDC balance
+  // Read USDT balance
   const { data: usdtBalance } = useReadContract({
     address: contracts.USDT as `0x${string}`,
     abi: USDT_ABI,
@@ -201,7 +201,7 @@ export function TradingPanel({ marketId, initialSide }: TradingPanelProps) {
           </span>
         </div>
 
-        {/* USDC Amount Input */}
+        {/* USDT Amount Input */}
         <div className="relative mb-3">
           <input
             type="number"
@@ -213,14 +213,14 @@ export function TradingPanel({ marketId, initialSide }: TradingPanelProps) {
                 setCollateral(value);
               }
             }}
-            placeholder="USDC Amount"
+            placeholder="USDT Amount"
             min="0"
             step="0.01"
             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 pr-20 text-lg focus:outline-none focus:border-blue-500"
           />
           <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
             <span className="text-blue-400">◉</span>
-            <span className="text-gray-400 text-sm">USDC</span>
+            <span className="text-gray-400 text-sm">USDT</span>
           </div>
         </div>
         
@@ -320,9 +320,9 @@ export function TradingPanel({ marketId, initialSide }: TradingPanelProps) {
             onClick={handleApprove}
             disabled={isApproveLoading || isApproving || !collateral || Number(collateral) <= 0}
             className="w-full py-3 rounded-lg font-semibold bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            title={!collateral ? "Enter an amount to continue" : "Approve USDC spending"}
+            title={!collateral ? "Enter an amount to continue" : "Approve USDT spending"}
           >
-            {isApproveLoading ? 'Approving...' : 'Approve USDC'}
+            {isApproveLoading ? 'Approving...' : 'Approve USDT'}
           </button>
         ) : (
           <button

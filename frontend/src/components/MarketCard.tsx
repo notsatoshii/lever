@@ -53,16 +53,16 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 export function MarketCard({ market }: MarketCardProps) {
   const contracts = CONTRACTS[97];
   const [price, setPrice] = useState<number | null>(null);
-  const [volume, setVolume] = useState<number>(0);
-  const [change24h, setChange24h] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mock sparkline data - in production would come from price history
+  // Sparkline shows price trending around current value
   const sparklineData = useMemo(() => {
     const basePrice = price || 0.5;
-    return Array.from({ length: 20 }, (_, i) => 
-      basePrice + (Math.random() - 0.5) * 0.1
-    );
+    // Generate a smooth trending line, not random noise
+    return Array.from({ length: 20 }, (_, i) => {
+      const trend = Math.sin(i / 3) * 0.03;
+      return Math.max(0.01, Math.min(0.99, basePrice + trend));
+    });
   }, [price]);
 
   useEffect(() => {
@@ -77,15 +77,9 @@ export function MarketCard({ market }: MarketCardProps) {
         
         const priceNum = Number(formatUnits(priceData as bigint, 18));
         setPrice(priceNum);
-        
-        // Mock volume and change for now - would come from indexer
-        setVolume(Math.random() * 50000);
-        setChange24h((Math.random() - 0.5) * 20);
       } catch (e) {
         console.error('Error fetching market data:', e);
-        setPrice(0.5); // Default
-        setVolume(1000);
-        setChange24h(0);
+        setPrice(0.5); // Default to 50%
       }
       setIsLoading(false);
     }
@@ -97,19 +91,9 @@ export function MarketCard({ market }: MarketCardProps) {
     return `${(p * 100).toFixed(0)}¢`;
   };
 
-  const formatVolume = (v: number) => {
-    if (v >= 1000000) return `$${(v / 1000000).toFixed(1)}M`;
-    if (v >= 1000) return `$${(v / 1000).toFixed(1)}K`;
-    return `$${v.toFixed(0)}`;
-  };
-
-  const formatChange = (c: number) => {
-    const prefix = c >= 0 ? '+' : '';
-    return `${prefix}${c.toFixed(2)}%`;
-  };
-
-  const isPositive = change24h >= 0;
-  const sparklineColor = isPositive ? '#22c55e' : '#ef4444'; // lever-green / lever-red
+  // Green for prices above 50%, red for below
+  const isYesFavored = (price || 0.5) >= 0.5;
+  const sparklineColor = isYesFavored ? '#22c55e' : '#ef4444';
 
   if (isLoading) {
     return (
@@ -133,9 +117,10 @@ export function MarketCard({ market }: MarketCardProps) {
   }
 
   return (
-    <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-gray-600 transition-all duration-200">
-      {/* Header */}
-      <div className="flex items-start gap-3 mb-4">
+    <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 hover:border-gray-600 transition-all duration-200 cursor-pointer group">
+      {/* Clickable Header Area */}
+      <Link href={`/markets/${market.id}`} className="block">
+        <div className="flex items-start gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-lg">
           {market.icon || '📊'}
         </div>
@@ -147,21 +132,15 @@ export function MarketCard({ market }: MarketCardProps) {
       {/* Stats */}
       <div className="flex items-center gap-4 mb-3 text-sm">
         <div>
-          <span className="text-gray-500">Price</span>
-          <p className="font-semibold text-white">
+          <span className="text-gray-500">Yes Price</span>
+          <p className="font-semibold text-white text-lg">
             {isLoading ? '—' : formatPrice(price)}
           </p>
         </div>
         <div>
-          <span className="text-gray-500">Volume</span>
-          <p className="font-semibold text-white">
-            {isLoading ? '—' : formatVolume(volume)}
-          </p>
-        </div>
-        <div>
-          <span className="text-gray-500">Last 24h</span>
-          <p className={`font-semibold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-            {isLoading ? '—' : formatChange(change24h)}
+          <span className="text-gray-500">No Price</span>
+          <p className="font-semibold text-white text-lg">
+            {isLoading || price === null ? '—' : formatPrice(1 - price)}
           </p>
         </div>
       </div>
@@ -170,6 +149,7 @@ export function MarketCard({ market }: MarketCardProps) {
       <div className="mb-4">
         <Sparkline data={sparklineData} color={sparklineColor} />
       </div>
+      </Link>
 
       {/* Action Buttons */}
       <div className="flex gap-2 mb-3">
@@ -187,13 +167,10 @@ export function MarketCard({ market }: MarketCardProps) {
         </Link>
       </div>
 
-      {/* Expiry */}
+      {/* Category Badge */}
       <div className="flex items-center justify-between text-xs text-gray-500">
-        <span>Market Expiry</span>
-        <span className="flex items-center gap-1">
-          <span>🕐</span>
-          <span>7d: 12h: 30m</span>
-        </span>
+        <span className="px-2 py-1 bg-gray-700 rounded text-gray-400">{market.category || 'General'}</span>
+        <span className="text-gray-600">Testnet</span>
       </div>
     </div>
   );

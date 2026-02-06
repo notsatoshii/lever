@@ -26,7 +26,7 @@ function ConnectButton() {
   if (isConnected) {
     return (
       <div className="flex items-center gap-3">
-        <span className="text-gray-400 text-sm">0 USDC</span>
+        <span className="text-gray-400 text-sm">0 USDT</span>
         <button
           onClick={() => disconnect()}
           className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"

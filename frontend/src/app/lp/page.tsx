@@ -20,22 +20,27 @@ export default function LPPage() {
 
   // Pool stats
   const [totalAssets, setTotalAssets] = useState<bigint | null>(null);
+  const [totalAllocated, setTotalAllocated] = useState<bigint | null>(null);
   const [sharePrice, setSharePrice] = useState<bigint | null>(null);
   const [utilization, setUtilization] = useState<bigint | null>(null);
+  const [cumulativeFees, setCumulativeFees] = useState<bigint | null>(null);
 
   // User stats
   const [usdtBalance, setUsdtBalance] = useState<bigint | null>(null);
   const [lpBalance, setLpBalance] = useState<bigint | null>(null);
   const [allowance, setAllowance] = useState<bigint | null>(null);
+  const [pendingFees, setPendingFees] = useState<bigint | null>(null);
 
   // Write functions
   const { writeContract: approve, data: approveHash } = useWriteContract();
   const { writeContract: deposit, data: depositHash } = useWriteContract();
   const { writeContract: withdraw, data: withdrawHash } = useWriteContract();
+  const { writeContract: claimFees, data: claimHash } = useWriteContract();
 
   const { isLoading: isApproving, isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveHash });
   const { isLoading: isDepositing } = useWaitForTransactionReceipt({ hash: depositHash });
   const { isLoading: isWithdrawing } = useWaitForTransactionReceipt({ hash: withdrawHash });
+  const { isLoading: isClaiming } = useWaitForTransactionReceipt({ hash: claimHash });
 
   const [pendingDepositAmount, setPendingDepositAmount] = useState<bigint | null>(null);
 
@@ -43,11 +48,16 @@ export default function LPPage() {
   useEffect(() => {
     async function fetchPoolStats() {
       try {
-        const [assets, price, util] = await Promise.all([
+        const [assets, allocated, price, util, cumFees] = await Promise.all([
           client.readContract({
             address: contracts.LP_POOL as `0x${string}`,
             abi: LP_POOL_ABI,
             functionName: 'totalAssets',
+          }),
+          client.readContract({
+            address: contracts.LP_POOL as `0x${string}`,
+            abi: LP_POOL_ABI,
+            functionName: 'totalAllocated',
           }),
           client.readContract({
             address: contracts.LP_POOL as `0x${string}`,
@@ -59,10 +69,17 @@ export default function LPPage() {
             abi: LP_POOL_ABI,
             functionName: 'utilization',
           }),
+          client.readContract({
+            address: contracts.LP_POOL as `0x${string}`,
+            abi: LP_POOL_ABI,
+            functionName: 'cumulativeFeePerShare',
+          }),
         ]);
         setTotalAssets(assets as bigint);
+        setTotalAllocated(allocated as bigint);
         setSharePrice(price as bigint);
         setUtilization(util as bigint);
+        setCumulativeFees(cumFees as bigint);
       } catch (e) {
         console.error('Error fetching pool stats:', e);
       }
@@ -77,7 +94,7 @@ export default function LPPage() {
     async function fetchUserStats() {
       if (!address) return;
       try {
-        const [usdt, lp, allow] = await Promise.all([
+        const [usdt, lp, allow, fees] = await Promise.all([
           client.readContract({
             address: contracts.USDT as `0x${string}`,
             abi: USDT_ABI,
@@ -96,10 +113,17 @@ export default function LPPage() {
             functionName: 'allowance',
             args: [address, contracts.LP_POOL as `0x${string}`],
           }),
+          client.readContract({
+            address: contracts.LP_POOL as `0x${string}`,
+            abi: LP_POOL_ABI,
+            functionName: 'pendingFeesOf',
+            args: [address],
+          }),
         ]);
         setUsdtBalance(usdt as bigint);
         setLpBalance(lp as bigint);
         setAllowance(allow as bigint);
+        setPendingFees(fees as bigint);
       } catch (e) {
         console.error('Error fetching user stats:', e);
       }
@@ -153,6 +177,14 @@ export default function LPPage() {
     });
   };
 
+  const handleClaimFees = () => {
+    claimFees({
+      address: contracts.LP_POOL as `0x${string}`,
+      abi: LP_POOL_ABI,
+      functionName: 'claimFees',
+    });
+  };
+
   const utilizationPercent = utilization ? Number(formatUnits(utilization, 18)) * 100 : 0;
   const estimatedAPY = utilizationPercent * 0.15; // Rough estimate
 
@@ -173,6 +205,12 @@ export default function LPPage() {
                 </p>
               </div>
               <div>
+                <p className="text-gray-400 text-sm mb-1">Capital Deployed</p>
+                <p className="text-2xl font-bold">
+                  ${totalAllocated ? Number(formatUnits(totalAllocated, 18)).toLocaleString() : '0'}
+                </p>
+              </div>
+              <div>
                 <p className="text-gray-400 text-sm mb-1">Utilization</p>
                 <p className="text-2xl font-bold">
                   {utilization !== null ? `${utilizationPercent.toFixed(1)}%` : '—'}
@@ -184,12 +222,19 @@ export default function LPPage() {
                   ${sharePrice ? Number(formatUnits(sharePrice, 18)).toFixed(4) : '—'}
                 </p>
               </div>
-              <div>
-                <p className="text-gray-400 text-sm mb-1">Est. APY</p>
-                <p className="text-2xl font-bold text-lever-green">
-                  {estimatedAPY.toFixed(1)}%
-                </p>
-              </div>
+            </div>
+            
+            {/* Fee Stats */}
+            <div className="mt-4 pt-4 border-t border-gray-700">
+              <h3 className="text-sm font-semibold text-gray-400 mb-2">Fee Distribution</h3>
+              <p className="text-sm text-gray-500">
+                Fees from trading, borrow interest, and liquidations are distributed pro-rata to LP token holders.
+                {cumulativeFees && cumulativeFees > 0n && (
+                  <span className="block mt-1 text-lever-green">
+                    Cumulative fees per share: {Number(formatUnits(cumulativeFees, 18)).toFixed(6)} USDT
+                  </span>
+                )}
+              </p>
             </div>
           </div>
 
@@ -237,6 +282,23 @@ export default function LPPage() {
                     : '0'}
                 </span>
               </div>
+              {pendingFees && pendingFees > 0n && (
+                <>
+                  <div className="flex justify-between mt-2 pt-2 border-t border-gray-600">
+                    <span className="text-lever-green">Unclaimed Fees</span>
+                    <span className="font-semibold text-lever-green">
+                      {Number(formatUnits(pendingFees, 18)).toFixed(4)} USDT
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleClaimFees}
+                    disabled={isClaiming}
+                    className="w-full mt-2 py-2 rounded-lg text-sm font-semibold bg-lever-green/20 text-lever-green hover:bg-lever-green/30 disabled:opacity-50"
+                  >
+                    {isClaiming ? 'Claiming...' : 'Claim Fees'}
+                  </button>
+                </>
+              )}
             </div>
           )}
 
@@ -266,7 +328,7 @@ export default function LPPage() {
 
           {/* Amount Input */}
           <div className="mb-4">
-            <label className="text-sm text-gray-400 mb-1 block">Amount (USDC)</label>
+            <label className="text-sm text-gray-400 mb-1 block">Amount (USDT)</label>
             <div className="relative">
               <input
                 type="number"
@@ -287,7 +349,7 @@ export default function LPPage() {
             </div>
             <p className="text-xs text-gray-500 mt-1">
               {mode === 'deposit'
-                ? `Balance: ${usdtBalance ? Number(formatUnits(usdtBalance, 18)).toLocaleString() : '0'} USDC`
+                ? `Balance: ${usdtBalance ? Number(formatUnits(usdtBalance, 18)).toLocaleString() : '0'} USDT`
                 : `LP Balance: ${lpBalance ? Number(formatUnits(lpBalance, 18)).toLocaleString() : '0'} lvUSDT`}
             </p>
           </div>

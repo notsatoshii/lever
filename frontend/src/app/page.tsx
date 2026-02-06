@@ -3,48 +3,48 @@
 import { useState } from 'react';
 import { MarketCard } from '@/components/MarketCard';
 
-// Mock markets data - in production would come from contract/API
+// Testnet demo markets - in production would come from contract/API or indexer
 const MARKETS = [
   { 
     id: 1, 
-    name: 'MicroStrategy BTC Sale', 
-    question: 'Will MicroStrategy sell Bitcoin before end of 2025?',
-    icon: '🪙',
+    name: 'BTC $150K', 
+    question: 'Will Bitcoin exceed $150,000 by end of 2026?',
+    icon: '₿',
     category: 'Crypto'
   },
   { 
     id: 2, 
-    name: 'Trump Deportations', 
-    question: 'Trump deports 250k-500k people in 2025?',
-    icon: '🇺🇸',
-    category: 'Politics'
-  },
-  { 
-    id: 3, 
-    name: 'GTA 6 Price', 
-    question: 'Will GTA 6 cost $100 or more at launch?',
-    icon: '🎮',
-    category: 'Gaming'
-  },
-  { 
-    id: 4, 
     name: 'Fed Rate Cut', 
-    question: 'Will the Fed decrease interest rates by 25 bps after the March 2026 meeting?',
+    question: 'Will the Fed cut rates by 50+ bps in 2026?',
     icon: '🏦',
     category: 'Finance'
   },
   { 
+    id: 3, 
+    name: 'ETH Flippening', 
+    question: 'Will ETH market cap exceed BTC in 2026?',
+    icon: '💎',
+    category: 'Crypto'
+  },
+  { 
+    id: 4, 
+    name: 'US Recession', 
+    question: 'Will the US enter a recession in 2026?',
+    icon: '📉',
+    category: 'Finance'
+  },
+  { 
     id: 5, 
-    name: 'Arsenal Premier League', 
-    question: 'Will Arsenal win the 2025-26 English Premier League?',
+    name: 'Champions League', 
+    question: 'Will Real Madrid win Champions League 2026?',
     icon: '⚽',
     category: 'Sports'
   },
   { 
     id: 6, 
-    name: 'ETH Price', 
-    question: 'Will ETH exceed $10,000 in 2025?',
-    icon: '💎',
+    name: 'SOL $500', 
+    question: 'Will Solana exceed $500 in 2026?',
+    icon: '◎',
     category: 'Crypto'
   },
 ];
