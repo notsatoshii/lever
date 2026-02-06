@@ -31,6 +31,12 @@
 - Updated `MarketStats.tsx` to use config instead of hardcoded values
 - Added expiring soon badges for Super Bowl markets (2 days!)
 - Added market icons
+- **UI Layout Redesign** (per Eric's feedback):
+  - Chart now full width on left (9 cols)
+  - Trading panel sticky on right (3 cols)
+  - Below chart: Recent Trades + Positions side by side
+  - PositionPanel now list format with TXID links
+  - RecentTrades component ready for real data
 
 ### Next Up
 - ~~Rebuild frontend~~ ✅ Built successfully

@@ -325,10 +325,10 @@ export default function MarketPage() {
         </div>
       )}
 
-      {/* Main Content - New Layout */}
+      {/* Main Content - Vertical Stack Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         
-        {/* Left side: Chart + Below-chart panels */}
+        {/* Left side: Chart + Recent Trades + Positions (stacked) */}
         <div className="lg:col-span-9 space-y-4">
           {/* Chart - Full width */}
           <PriceChart 
@@ -337,14 +337,11 @@ export default function MarketPage() {
             marketQuestion={marketConfig?.question}
           />
           
-          {/* Below Chart: Recent Trades + Positions (horizontal) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Recent Trades */}
-            <RecentTrades marketId={marketId} />
-            
-            {/* Positions List */}
-            <PositionPanel marketId={marketId} />
-          </div>
+          {/* Recent Trades (below chart) */}
+          <RecentTrades marketId={marketId} />
+          
+          {/* Positions List (below trades) */}
+          <PositionPanel marketId={marketId} />
         </div>
 
         {/* Right side: Trading Panel */}
