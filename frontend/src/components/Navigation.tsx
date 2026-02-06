@@ -3,13 +3,28 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, useReadContract } from 'wagmi';
+import { formatUnits } from 'viem';
+import { CONTRACTS, USDT_ABI } from '@/config/contracts';
 
 function ConnectButton() {
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const [mounted, setMounted] = useState(false);
+  const contracts = CONTRACTS[97];
+
+  // Fetch USDT balance
+  const { data: usdtBalance } = useReadContract({
+    address: contracts.USDT as `0x${string}`,
+    abi: USDT_ABI,
+    functionName: 'balanceOf',
+    args: [address!],
+    query: {
+      enabled: !!address,
+      refetchInterval: 10000,
+    },
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -23,10 +38,14 @@ function ConnectButton() {
     );
   }
 
+  const formattedBalance = usdtBalance 
+    ? Number(formatUnits(usdtBalance as bigint, 18)).toFixed(2)
+    : '0.00';
+
   if (isConnected) {
     return (
       <div className="flex items-center gap-3">
-        <span className="text-gray-400 text-sm">0 USDT</span>
+        <span className="text-gray-400 text-sm">{formattedBalance} USDT</span>
         <button
           onClick={() => disconnect()}
           className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
@@ -40,9 +59,9 @@ function ConnectButton() {
   return (
     <button
       onClick={() => connect({ connector: connectors[0] })}
-      className="px-4 py-2 border border-green-500 text-green-500 hover:bg-green-500/10 rounded-lg font-medium text-sm"
+      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium text-sm"
     >
-      Deposit
+      Connect Wallet
     </button>
   );
 }

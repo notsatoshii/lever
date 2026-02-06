@@ -209,7 +209,7 @@ export default function MarketPage() {
         <div className="mb-4 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg text-sm">
           <span className="text-gray-400">Underlying market: </span>
           <a 
-            href={`https://polymarket.com/event/${polymarket.slug}`} 
+            href={`https://polymarket.com/market/${polymarket.slug}`} 
             target="_blank" 
             rel="noopener noreferrer"
             className="text-blue-400 hover:underline"

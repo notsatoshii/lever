@@ -301,8 +301,25 @@ export function TradingPanel({ marketId, initialSide, polymarketPrice }: Trading
             <div className="flex justify-between">
               <span className="text-gray-400">Est. Liq. Price</span>
               <span className={side === 'long' ? 'text-red-400' : 'text-green-400'}>
-                {side === 'long' ? '~35¢' : '~65¢'}
+                {(() => {
+                  // Liquidation when loss = 90% of collateral (10% maintenance margin)
+                  // For long: liq = entry * (1 - 0.9/leverage)
+                  // For short: liq = entry * (1 + 0.9/leverage)
+                  const entryPrice = polymarketPrice ?? 0.5;
+                  const maintenanceRatio = 0.9;
+                  if (side === 'long') {
+                    const liqPrice = entryPrice * (1 - maintenanceRatio / leverage);
+                    return `${Math.max(1, liqPrice * 100).toFixed(1)}¢`;
+                  } else {
+                    const liqPrice = entryPrice * (1 + maintenanceRatio / leverage);
+                    return `${Math.min(99, liqPrice * 100).toFixed(1)}¢`;
+                  }
+                })()}
               </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Trading Fee</span>
+              <span className="text-gray-300">0.1%</span>
             </div>
           </div>
         )}

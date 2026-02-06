@@ -12,21 +12,13 @@ const client = createPublicClient({
   transport: http('https://data-seed-prebsc-1-s1.binance.org:8545'),
 });
 
-const MARKETS: Record<number, { name: string; icon: string }> = {
-  1: { name: 'MicroStrategy BTC', icon: '🪙' },
-  2: { name: 'Deportations', icon: '🇺🇸' },
-  3: { name: 'GTA 6', icon: '🎮' },
-  4: { name: 'Fed Rate', icon: '🏦' },
-  5: { name: 'Arsenal', icon: '⚽' },
-  6: { name: 'ETH $10k', icon: '💎' },
-};
-
 interface Position {
   marketId: number;
   size: bigint;
   collateral: bigint;
   entryPrice: bigint;
-  isLong: boolean;
+  currentPrice: bigint;
+  pnl: bigint;
 }
 
 export default function PortfolioPage() {
@@ -36,6 +28,7 @@ export default function PortfolioPage() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [lpBalance, setLpBalance] = useState<bigint | null>(null);
   const [sharePrice, setSharePrice] = useState<bigint | null>(null);
+  const [pendingFees, setPendingFees] = useState<bigint | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'positions' | 'lp' | 'history'>('positions');
 
@@ -48,22 +41,52 @@ export default function PortfolioPage() {
       }
 
       try {
-        // Fetch positions for each market
-        const positionPromises = Object.keys(MARKETS).map(async (id) => {
+        // Fetch positions for markets 1-10
+        const positionPromises = Array.from({ length: 10 }, (_, i) => i + 1).map(async (id) => {
           try {
-            const pos = await client.readContract({
-              address: contracts.LEDGER as `0x${string}`,
-              abi: LEDGER_ABI,
-              functionName: 'getPosition',
-              args: [address, BigInt(id)],
-            });
-            return { marketId: Number(id), ...(pos as any) };
+            const [pos, price] = await Promise.all([
+              client.readContract({
+                address: contracts.LEDGER as `0x${string}`,
+                abi: LEDGER_ABI,
+                functionName: 'getPosition',
+                args: [address, BigInt(id)],
+              }),
+              client.readContract({
+                address: contracts.PRICE_ENGINE as `0x${string}`,
+                abi: PRICE_ENGINE_ABI,
+                functionName: 'getMarkPrice',
+                args: [BigInt(id)],
+              }),
+            ]);
+            
+            const position = pos as any;
+            if (!position?.size || position.size === 0n) return null;
+            
+            // Calculate PnL
+            const currentPrice = price as bigint;
+            const posSize = BigInt(position.size);
+            const entryPrice = BigInt(position.entryPrice);
+            const collateral = BigInt(position.collateral);
+            const isLong = posSize > 0n;
+            const absSize = isLong ? posSize : -posSize;
+            const entryValue = (absSize * entryPrice) / BigInt(1e18);
+            const currentValue = (absSize * currentPrice) / BigInt(1e18);
+            const pnl = isLong ? currentValue - entryValue : entryValue - currentValue;
+            
+            return { 
+              marketId: id, 
+              size: posSize,
+              collateral: collateral,
+              entryPrice: entryPrice,
+              currentPrice,
+              pnl,
+            };
           } catch {
             return null;
           }
         });
 
-        const [posResults, lp, price] = await Promise.all([
+        const [posResults, lp, price, fees] = await Promise.all([
           Promise.all(positionPromises),
           client.readContract({
             address: contracts.LP_POOL as `0x${string}`,
@@ -76,15 +99,19 @@ export default function PortfolioPage() {
             abi: LP_POOL_ABI,
             functionName: 'sharePrice',
           }),
+          client.readContract({
+            address: contracts.LP_POOL as `0x${string}`,
+            abi: LP_POOL_ABI,
+            functionName: 'pendingFeesOf',
+            args: [address],
+          }),
         ]);
 
-        // Filter out null and zero positions
-        const validPositions = posResults.filter(
-          (p) => p && p.size && p.size !== 0n
-        ) as Position[];
+        const validPositions = posResults.filter((p) => p !== null) as Position[];
         setPositions(validPositions);
         setLpBalance(lp as bigint);
         setSharePrice(price as bigint);
+        setPendingFees(fees as bigint);
       } catch (e) {
         console.error('Error fetching portfolio:', e);
       }
@@ -100,10 +127,16 @@ export default function PortfolioPage() {
     ? Number(formatUnits(lpBalance, 18)) * Number(formatUnits(sharePrice, 18))
     : 0;
 
-  // Calculate total PnL (mock for now - would need current prices)
+  const totalPendingFees = pendingFees ? Number(formatUnits(pendingFees, 18)) : 0;
+
+  // Calculate total unrealized PnL from actual positions
   const totalUnrealizedPnL = positions.reduce((acc, pos) => {
-    // Mock calculation
-    return acc + (Math.random() - 0.5) * 100;
+    return acc + Number(formatUnits(pos.pnl, 18));
+  }, 0);
+
+  // Total collateral in positions
+  const totalCollateral = positions.reduce((acc, pos) => {
+    return acc + Number(formatUnits(pos.collateral, 18));
   }, 0);
 
   if (!isConnected) {
@@ -125,7 +158,9 @@ export default function PortfolioPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-5">
           <p className="text-gray-400 text-sm mb-1">Total Equity</p>
-          <p className="text-2xl font-bold">${(totalLPValue + 1000).toLocaleString()}</p>
+          <p className="text-2xl font-bold">
+            ${(totalLPValue + totalCollateral + totalUnrealizedPnL).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+          </p>
         </div>
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-5">
           <p className="text-gray-400 text-sm mb-1">Open Positions</p>
@@ -139,7 +174,7 @@ export default function PortfolioPage() {
         </div>
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-5">
           <p className="text-gray-400 text-sm mb-1">LP Value</p>
-          <p className="text-2xl font-bold">${totalLPValue.toLocaleString()}</p>
+          <p className="text-2xl font-bold">${totalLPValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
         </div>
       </div>
 
@@ -183,22 +218,22 @@ export default function PortfolioPage() {
                     <th className="text-right p-4">Entry Price</th>
                     <th className="text-right p-4">Mark Price</th>
                     <th className="text-right p-4">PnL</th>
-                    <th className="text-right p-4">Liq. Price</th>
+                    <th className="text-right p-4">Collateral</th>
                     <th className="text-right p-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {positions.map((pos) => {
-                    const market = MARKETS[pos.marketId] || { name: `Market ${pos.marketId}`, icon: '📊' };
                     const isLong = pos.size > 0n;
-                    const mockPnL = (Math.random() - 0.5) * 50;
+                    const absSize = isLong ? pos.size : -pos.size;
+                    const pnlNum = Number(formatUnits(pos.pnl, 18));
 
                     return (
                       <tr key={pos.marketId} className="border-t border-gray-700">
                         <td className="p-4">
                           <div className="flex items-center gap-2">
-                            <span>{market.icon}</span>
-                            <span className="font-medium whitespace-nowrap">{market.name}</span>
+                            <span>📊</span>
+                            <span className="font-medium whitespace-nowrap">Market #{pos.marketId}</span>
                           </div>
                         </td>
                         <td className="p-4">
@@ -209,17 +244,19 @@ export default function PortfolioPage() {
                           </span>
                         </td>
                         <td className="p-4 text-right whitespace-nowrap">
-                          {Number(formatUnits(pos.size < 0n ? -pos.size : pos.size, 18)).toLocaleString()}
+                          {Number(formatUnits(absSize, 18)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                         </td>
                         <td className="p-4 text-right whitespace-nowrap">
                           {(Number(formatUnits(pos.entryPrice, 18)) * 100).toFixed(1)}¢
                         </td>
-                        <td className="p-4 text-right whitespace-nowrap">50.0¢</td>
-                        <td className={`p-4 text-right font-medium whitespace-nowrap ${mockPnL >= 0 ? 'text-lever-green' : 'text-lever-red'}`}>
-                          {mockPnL >= 0 ? '+' : ''}{mockPnL.toFixed(2)}
+                        <td className="p-4 text-right whitespace-nowrap">
+                          {(Number(formatUnits(pos.currentPrice, 18)) * 100).toFixed(1)}¢
                         </td>
-                        <td className="p-4 text-right text-gray-400 whitespace-nowrap">
-                          {isLong ? '35.0¢' : '65.0¢'}
+                        <td className={`p-4 text-right font-medium whitespace-nowrap ${pnlNum >= 0 ? 'text-lever-green' : 'text-lever-red'}`}>
+                          {pnlNum >= 0 ? '+' : ''}{pnlNum.toFixed(2)} USDT
+                        </td>
+                        <td className="p-4 text-right whitespace-nowrap">
+                          {Number(formatUnits(pos.collateral, 18)).toFixed(2)} USDT
                         </td>
                         <td className="p-4 text-right">
                           <Link
@@ -248,12 +285,12 @@ export default function PortfolioPage() {
                 <div>
                   <p className="text-gray-400 text-sm mb-1">LP Tokens</p>
                   <p className="text-xl font-bold">
-                    {Number(formatUnits(lpBalance, 18)).toLocaleString()} lvUSDT
+                    {Number(formatUnits(lpBalance, 18)).toLocaleString(undefined, { maximumFractionDigits: 2 })} lvUSDT
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-400 text-sm mb-1">Value</p>
-                  <p className="text-xl font-bold">${totalLPValue.toLocaleString()}</p>
+                  <p className="text-xl font-bold">${totalLPValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
                 </div>
                 <div>
                   <p className="text-gray-400 text-sm mb-1">Share Price</p>
@@ -262,8 +299,10 @@ export default function PortfolioPage() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">Earned Fees</p>
-                  <p className="text-xl font-bold text-green-400">+$0.00</p>
+                  <p className="text-gray-400 text-sm mb-1">Unclaimed Fees</p>
+                  <p className={`text-xl font-bold ${totalPendingFees > 0 ? 'text-green-400' : 'text-gray-400'}`}>
+                    {totalPendingFees > 0 ? '+' : ''}${totalPendingFees.toFixed(4)}
+                  </p>
                 </div>
               </div>
               <Link

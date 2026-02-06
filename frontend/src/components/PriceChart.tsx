@@ -79,21 +79,30 @@ export function PriceChart({ marketId, polymarketPrice, marketQuestion }: PriceC
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
 
-    // Generate initial historical data (simulated)
+    // Generate initial historical data based on polymarket price or default
+    const basePrice = polymarketPrice ?? 0.5;
     const now = Math.floor(Date.now() / 1000);
     const interval = 60; // 1 minute candles
     const historyLength = 60; // 1 hour of history
-    let price = 0.5; // Start at 50%
+    
+    // Work backwards from current price to create believable history
+    let price = basePrice;
+    const prices: number[] = [price];
+    
+    // Generate price path backwards (small random walk)
+    for (let i = 0; i < historyLength; i++) {
+      const variance = (Math.random() - 0.5) * 0.008; // ±0.4% per candle
+      price = Math.min(0.95, Math.max(0.05, price - variance)); // Subtract to go backwards
+      prices.unshift(price);
+    }
 
     const initialData: CandlestickData<Time>[] = [];
-    for (let i = historyLength; i >= 0; i--) {
-      const time = (now - i * interval) as Time;
-      const open = price;
-      const variance = (Math.random() - 0.5) * 0.02; // ±1% variance
-      price = Math.min(0.99, Math.max(0.01, price + variance));
-      const close = price;
-      const high = Math.max(open, close) + Math.random() * 0.005;
-      const low = Math.min(open, close) - Math.random() * 0.005;
+    for (let i = 0; i < prices.length; i++) {
+      const time = (now - (prices.length - 1 - i) * interval) as Time;
+      const open = prices[i];
+      const close = i < prices.length - 1 ? prices[i + 1] : open;
+      const high = Math.max(open, close) + Math.random() * 0.003;
+      const low = Math.min(open, close) - Math.random() * 0.003;
 
       initialData.push({
         time,
@@ -106,6 +115,7 @@ export function PriceChart({ marketId, polymarketPrice, marketQuestion }: PriceC
 
     priceHistoryRef.current = initialData;
     candleSeries.setData(initialData);
+    setCurrentPrice(basePrice);
 
     // Handle resize
     const handleResize = () => {
@@ -119,7 +129,7 @@ export function PriceChart({ marketId, polymarketPrice, marketQuestion }: PriceC
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, []);
+  }, [polymarketPrice]);
 
   // Fetch and update price
   useEffect(() => {
