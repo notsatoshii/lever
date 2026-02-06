@@ -224,7 +224,9 @@ function TradeHistoryTab({ address, contracts }: { address: string | undefined; 
 }
 
 interface Position {
+  id: bigint;
   marketId: number;
+  side: number; // 0 = Long, 1 = Short
   size: bigint;
   collateral: bigint;
   entryPrice: bigint;
@@ -252,53 +254,60 @@ export default function PortfolioPage() {
       }
 
       try {
-        // Fetch positions for markets 0-9 (LedgerV3)
-        const positionPromises = Array.from({ length: 10 }, (_, i) => i).map(async (id) => {
-          try {
-            const [pos, price] = await Promise.all([
-              client.readContract({
-                address: contracts.LEDGER as `0x${string}`,
-                abi: LEDGER_ABI,
-                functionName: 'getPosition',
-                args: [address, BigInt(id)],
-              }),
-              client.readContract({
-                address: contracts.PRICE_ENGINE as `0x${string}`,
-                abi: PRICE_ENGINE_ABI,
-                functionName: 'getMarkPrice',
-                args: [BigInt(id)],
-              }),
-            ]);
-            
-            const position = pos as any;
-            if (!position?.size || position.size === 0n) return null;
+        // Fetch all open positions using V4 getUserOpenPositions
+        const openPositions = await client.readContract({
+          address: contracts.LEDGER as `0x${string}`,
+          abi: LEDGER_ABI,
+          functionName: 'getUserOpenPositions',
+          args: [address],
+        }) as any[];
+
+        // Get current prices for all markets with positions
+        const marketIds = [...new Set(openPositions.map((p: any) => Number(p.marketId)))];
+        const pricePromises = marketIds.map(async (marketId) => {
+          const price = await client.readContract({
+            address: contracts.PRICE_ENGINE as `0x${string}`,
+            abi: PRICE_ENGINE_ABI,
+            functionName: 'getMarkPrice',
+            args: [BigInt(marketId)],
+          });
+          return { marketId, price: price as bigint };
+        });
+        const prices = await Promise.all(pricePromises);
+        const priceMap = Object.fromEntries(prices.map(p => [p.marketId, p.price]));
+
+        // Process positions with PnL
+        const processedPositions = openPositions
+          .filter((p: any) => p.isOpen && p.size > 0n)
+          .map((pos: any) => {
+            const marketId = Number(pos.marketId);
+            const currentPrice = priceMap[marketId] || 0n;
+            const size = BigInt(pos.size);
+            const entryPrice = BigInt(pos.entryPrice);
+            const collateral = BigInt(pos.collateral);
+            const isLong = pos.side === 0;
             
             // Calculate PnL
-            const currentPrice = price as bigint;
-            const posSize = BigInt(position.size);
-            const entryPrice = BigInt(position.entryPrice);
-            const collateral = BigInt(position.collateral);
-            const isLong = posSize > 0n;
-            const absSize = isLong ? posSize : -posSize;
-            const entryValue = (absSize * entryPrice) / BigInt(1e18);
-            const currentValue = (absSize * currentPrice) / BigInt(1e18);
-            const pnl = isLong ? currentValue - entryValue : entryValue - currentValue;
+            let pnl: bigint;
+            if (isLong) {
+              pnl = (size * (currentPrice - entryPrice)) / BigInt(1e18);
+            } else {
+              pnl = (size * (entryPrice - currentPrice)) / BigInt(1e18);
+            }
             
-            return { 
-              marketId: id, 
-              size: posSize,
-              collateral: collateral,
-              entryPrice: entryPrice,
+            return {
+              id: BigInt(pos.id),
+              marketId,
+              side: pos.side,
+              size,
+              collateral,
+              entryPrice,
               currentPrice,
               pnl,
             };
-          } catch {
-            return null;
-          }
-        });
+          });
 
-        const [posResults, lp, price, fees] = await Promise.all([
-          Promise.all(positionPromises),
+        const [lp, price, fees] = await Promise.all([
           client.readContract({
             address: contracts.LP_POOL as `0x${string}`,
             abi: LP_POOL_ABI,
@@ -318,8 +327,7 @@ export default function PortfolioPage() {
           }),
         ]);
 
-        const validPositions = posResults.filter((p) => p !== null) as Position[];
-        setPositions(validPositions);
+        setPositions(processedPositions);
         setLpBalance(lp as bigint);
         setSharePrice(price as bigint);
         setPendingFees(fees as bigint);
@@ -435,16 +443,16 @@ export default function PortfolioPage() {
                 </thead>
                 <tbody>
                   {positions.map((pos) => {
-                    const isLong = pos.size > 0n;
-                    const absSize = isLong ? pos.size : -pos.size;
+                    const isLong = pos.side === 0;
                     const pnlNum = Number(formatUnits(pos.pnl, 18));
 
                     return (
-                      <tr key={pos.marketId} className="border-t border-gray-700">
+                      <tr key={pos.id.toString()} className="border-t border-gray-700">
                         <td className="p-4">
                           <div className="flex items-center gap-2">
                             <span>📊</span>
                             <span className="font-medium whitespace-nowrap">Market #{pos.marketId}</span>
+                            <span className="text-xs text-gray-500">(#{pos.id.toString()})</span>
                           </div>
                         </td>
                         <td className="p-4">
@@ -455,7 +463,7 @@ export default function PortfolioPage() {
                           </span>
                         </td>
                         <td className="p-4 text-right whitespace-nowrap">
-                          {Number(formatUnits(absSize, 18)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          ${Number(formatUnits(pos.size, 18)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                         </td>
                         <td className="p-4 text-right whitespace-nowrap">
                           {(Number(formatUnits(pos.entryPrice, 18)) * 100).toFixed(1)}¢

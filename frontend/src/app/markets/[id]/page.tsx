@@ -42,8 +42,8 @@ function RecentTrades({ marketId }: { marketId: number }) {
       try {
         const contracts = CONTRACTS[97];
         const currentBlock = await client.getBlockNumber();
-        // Fetch last ~2000 blocks (~1.5 hours of trades)
-        const fromBlock = currentBlock > 2000n ? currentBlock - 2000n : 0n;
+        // Fetch last ~500 blocks (~25 mins) - BSC testnet RPC limits queries
+        const fromBlock = currentBlock > 500n ? currentBlock - 500n : 0n;
         
         const logs = await client.getLogs({
           address: contracts.ROUTER as `0x${string}`,

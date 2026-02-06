@@ -1,91 +1,71 @@
 # WORKLOG - Active Task Log
 
-## Status as of 2026-02-06 21:35 UTC
+## Status as of 2026-02-06 21:50 UTC
 
-### Session Summary (21:11 - 21:35 UTC)
+### 🚀 MAJOR UPDATE: V4/V6 DEPLOYED AND LIVE
 
-#### Contract Development - Position ID System (V4/V6)
-Eric requested ability to have **multiple positions per market** (long AND short simultaneously). Current V3 system only allows one position per market per user.
+#### New Contracts (Position ID Model)
+| Contract | Address |
+|----------|---------|
+| **PositionLedgerV4** | `0x63477383dcA29747790b46dD5052fCA333D6A985` |
+| **RouterV6** | `0xF8d1b25b8cdf5C5e9a55f6E34f97e4E86ea387bB` |
 
-**Created new contracts:**
-- ✅ `PositionLedgerV4.sol` — Position ID model, each position has unique ID
-- ✅ `RouterV6.sol` — Works with position IDs, returns positionId on open
-- ✅ Both compile successfully
+#### What's New
+- ✅ **Multiple positions per market** — Can have LONG and SHORT simultaneously
+- ✅ **Position IDs** — Each position has unique ID
+- ✅ **Explicit close** — `closePosition(positionId)` instead of marketId
+- ✅ **7 positions migrated** from V3 to V4
 
-**Key changes in V4/V6:**
-- `mapping(uint256 => Position) positions` — positionId-based, not (user, marketId)
-- `openPosition()` returns `positionId`
-- `closePosition(positionId)` — explicit close by ID
-- Supports unlimited positions per market per user
-- Long AND short can coexist in same market
+#### Migration Complete
+Positions migrated (positionIds 1-7):
+- Market 1: SHORT $9k (ID: 1)
+- Market 2: LONG $44k (ID: 2)
+- Market 3: SHORT $9k (ID: 3)
+- Market 5: SHORT $25k (ID: 4)
+- Market 6: LONG $9.37k (ID: 5)
+- Market 7: SHORT $9.6k (ID: 6)
+- Market 9: SHORT $8.3k (ID: 7)
 
-**NOT DEPLOYED YET** — Scheduled for tomorrow (Feb 7)
-
-#### Test Positions Opened
-Eric provided testnet deployer key. Opened positions on correct router:
-
-**Correct Router:** `0xee92ef898a0eabca96cad863cb0303b6d13cc023` (RouterV5)
-**NOT the old one in WORKLOG:** ~~0x346D9eC78F8437c2aa32375584B959ccCDc843E1~~
-
-**Positions opened ($3000 collateral, 3x leverage each):**
-| Market | Result | Direction | Notional |
-|--------|--------|-----------|----------|
-| 0 | ❌ Failed | - | (existing) |
-| 1 | ✅ Success | SHORT | $9,000 |
-| 2 | ✅ Success | LONG | $9,000 |
-| 3 | ✅ Success | SHORT | $9,000 |
-| 4 | ❌ Failed | - | (existing) |
-| 5 | ❌ Failed | - | (existing) |
-| 6 | ✅ Success | LONG | $9,000 |
-| 7 | ✅ Success | SHORT | $9,000 |
-| 8 | ❌ Failed | - | (existing) |
-| 9 | ✅ Success | SHORT | $9,000 |
-
-**Total new positions:** 6 × $3,000 = $18,000 collateral, $54,000 notional
-**4 failed** because markets already had positions (V3 limitation)
-
-#### Frontend Fix - Recent Trades
-Fixed `RecentTrades` component — was showing "No trades yet" because it had a TODO placeholder.
-
-**Now fetches real data:**
-- Reads `PositionOpened` events from Router contract
-- Last ~2000 blocks (~1.5 hours)
-- Shows: Time, Side, Size, Price, TX link
-- Auto-refreshes every 30 seconds
-
-**File changed:** `frontend/src/app/markets/[id]/page.tsx`
-**Frontend restarted:** `sudo systemctl restart lever-frontend`
+#### Frontend Updated
+- ✅ `contracts.ts` — New Router/Ledger addresses
+- ✅ `PositionPanel.tsx` — Works with position IDs, shows multiple positions
+- ✅ `portfolio/page.tsx` — Uses getUserOpenPositions, shows position IDs
+- ✅ `priceUpdater.ts` — Fixed PriceEngine address
+- ✅ `RecentTrades` — Fixed to fetch real events
 
 ---
 
-## Current Deployments (CORRECTED)
+## Current Production Contracts (BSC Testnet)
 
-### Production Contracts (BSC Testnet)
+### V6/V4 System (ACTIVE)
 | Contract | Address |
 |----------|---------|
 | **USDT (Mock)** | `0x0Fbe7F2C870636b1f3cFc6AD9d5767eb26A48F58` |
-| **RouterV5** | `0xee92ef898a0eabca96cad863cb0303b6d13cc023` |
-| **PositionLedgerV3** | `0x74b24940c76c53cb0e9f0194cc79f6c08cf79f73` |
-| **vAMM** | `0xab015ae92092996ad3dc95a8874183c0fb5f9938` |
+| **RouterV6** | `0xF8d1b25b8cdf5C5e9a55f6E34f97e4E86ea387bB` |
+| **PositionLedgerV4** | `0x63477383dcA29747790b46dD5052fCA333D6A985` |
+| **vAMM** | `0xAb015aE92092996ad3dc95a8874183c0Fb5f9938` |
 | **PriceEngineV2** | `0x32Fe76322105f7990aACF5C6E2E103Aba68d0CbC` |
-| **SimpleRiskEngine** | `0x543ccad81a2eded2dc785272fcba899512a161b4` |
+| **SimpleRiskEngine** | `0x543ccaD81A2EDEd2dc785272fCba899512a161B4` |
 | **BorrowFeeEngineV2** | `0xc68e5b17f286624E31c468147360D36eA672BD35` |
 | **FundingEngine** | `0xa6Ec543C82c564F9Cdb9a7e7682C68A43D1af802` |
 | **LP Pool** | `0x187d9CA1A112323a966C2BB1Ed05Fe436Aadd5C1` |
 | **Insurance Fund** | `0xB8CA10ADbE4c0666eF701e0D0aeB27cFC5b81932` |
 
+### Deprecated V5/V3 (kept for reference)
+| Contract | Address |
+|----------|---------|
+| RouterV5 | `0xee92ef898a0eabca96cad863cb0303b6d13cc023` |
+| PositionLedgerV3 | `0x74b24940c76c53cb0e9f0194cc79f6c08cf79f73` |
+
 ### Deployer/Test Wallet
 - **Address:** `0x7928251fE2D52CBECDCe0Fe9551aD9BF798347bc`
-- **USDT Balance:** ~8.7M (testnet)
-- **Is owner of:** USDT, Router, Ledger, vAMM, RiskEngine
+- **Is owner of:** All contracts
 
-### Running Services
+---
+
+## Running Services
 - **Frontend:** http://165.245.186.254:3001 (systemd: `lever-frontend`)
 - **Keeper v3:** Syncing prices every 30s
-
-### LP Pool Stats
-- **TVL:** ~$1M USDT
-- **Utilization:** Varies with position OI
 
 ---
 
@@ -93,8 +73,8 @@ Fixed `RecentTrades` component — was showing "No trades yet" because it had a 
 | ID | Market | Category |
 |----|--------|----------|
 | 0 | Indiana Pacers NBA Finals | Sports |
-| 1 | Patriots Super Bowl 2026 | Sports ⚠️ Feb 8 |
-| 2 | Seahawks Super Bowl 2026 | Sports ⚠️ Feb 8 |
+| 1 | Patriots Super Bowl 2026 | Sports ⚠️ **Feb 8** |
+| 2 | Seahawks Super Bowl 2026 | Sports ⚠️ **Feb 8** |
 | 3 | Jesus returns before GTA VI | General |
 | 4 | Celtics NBA Finals | Sports |
 | 5 | Thunder NBA Finals | Sports |
@@ -105,23 +85,24 @@ Fixed `RecentTrades` component — was showing "No trades yet" because it had a 
 
 ---
 
-## Tomorrow's Tasks (Feb 7)
-1. **Deploy PositionLedgerV4 + RouterV6** — Enable multiple positions per market
-2. **Update frontend** — Support position IDs, display multiple positions
-3. **Migrate any existing positions** if needed
-4. **Test before Super Bowl** (Feb 8)
+## Session Summary (21:11 - 21:50 UTC)
+
+1. **Investigated why FE trades were failing** — Wrong PriceEngine address in priceUpdater.ts
+2. **Created PositionLedgerV4 + RouterV6** — Position ID model for multiple positions per market
+3. **Deployed V4/V6 contracts** — Via forge script
+4. **Migrated 7 positions** from V3 to V4
+5. **Updated frontend** — New ABIs, PositionPanel, portfolio page
+6. **Fixed RecentTrades** — Now fetches real PositionOpened events
 
 ---
 
 ## GitHub
 - **Repo:** https://github.com/notsatoshii/lever
-- **New contracts added but not committed yet:**
-  - `contracts/src/PositionLedgerV4.sol`
-  - `contracts/src/RouterV6.sol`
+- **Latest commit:** `bca9ecd` - feat: Position ID system (V4/V6) + Recent Trades fix
 
 ---
 
-## Key Findings This Session
-1. **Address mismatch:** Old WORKLOG had wrong router address. Frontend config (`contracts.ts`) has the correct one.
-2. **V3 limitation confirmed:** Can't have long+short in same market. User gets "failed" when trying to open opposite direction.
-3. **Recent Trades was broken:** Just a placeholder, now fixed to fetch real events.
+## Next Steps
+- Test opening multiple positions in same market
+- Test closing individual positions by ID
+- Super Bowl markets expire **Feb 8** — 2 days!

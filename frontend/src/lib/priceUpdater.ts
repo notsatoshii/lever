@@ -4,7 +4,7 @@ import { bscTestnet } from 'viem/chains';
 
 // Keeper wallet for price updates (testnet only - in production use proper oracle)
 const KEEPER_KEY = '0x4165dec4fb068de68c290670b28870cbe54060d81f444959c9cd67445b3eb5c4';
-const PRICE_ENGINE = '0x74F964E2bda482Ae78834fF4F4FBC892E1b6Aa33';
+const PRICE_ENGINE = '0x32Fe76322105f7990aACF5C6E2E103Aba68d0CbC'; // PriceEngineV2
 
 const account = privateKeyToAccount(KEEPER_KEY);
 
