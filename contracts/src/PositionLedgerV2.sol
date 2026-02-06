@@ -224,6 +224,14 @@ contract PositionLedgerV2 {
         emit MarketLiveStatusChanged(marketId, isLive, market.liveStartTime);
     }
     
+    /**
+     * @notice Set total TVL (for global OI cap calculation)
+     * @dev Should be synced with LP Pool totalAssets
+     */
+    function setTotalTVL(uint256 _tvl) external onlyOwner {
+        totalTVL = _tvl;
+    }
+    
     // ============ Core Position Functions ============
     
     /**

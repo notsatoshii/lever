@@ -186,25 +186,42 @@ export default function LPPage() {
   };
 
   const utilizationPercent = utilization ? Number(formatUnits(utilization, 18)) * 100 : 0;
+  const utilizationDecimal = utilization ? Number(formatUnits(utilization, 18)) : 0;
   
-  // APY Calculation based on:
-  // 1. Share price appreciation (historical performance)
-  // 2. Projected yield from current utilization
+  // APY Calculation - ALL fee sources flow to LPs:
+  // 1. Borrow fees (continuous accrual from open positions)
+  // 2. Trading fees (on position open/close)
+  // 3. Liquidation fees (from liquidation penalties)
+  
+  // Share price captures ALL fee types (most accurate measure)
   const sharePriceNum = sharePrice ? Number(formatUnits(sharePrice, 18)) : 1.0;
-  const sharePriceAPY = sharePriceNum > 1.0 
-    ? ((sharePriceNum - 1.0) * 365 / 7) * 100  // Assume 7 days of operation, annualize
-    : 0;
+  const sharePriceGain = sharePriceNum > 1.0 ? (sharePriceNum - 1.0) * 100 : 0; // % gain so far
   
-  // Projected APY components:
-  // - Borrow fees: ~15% APR base rate * utilization
-  // - Trading fees: ~10 bps per trade, estimated daily volume = 10% of TVL when utilized
-  const borrowFeeAPY = utilizationPercent * 0.15;  // 15% base rate * utilization
-  const tradingFeeAPY = utilizationPercent * 0.05; // Trading fee contribution
+  // Total fees collected per share (for display)
+  const totalFeesPerShare = cumulativeFees ? Number(formatUnits(cumulativeFees, 18)) : 0;
   
-  // Combine: use share price APY if available, otherwise projected
-  const estimatedAPY = sharePriceAPY > 0 
-    ? sharePriceAPY 
-    : borrowFeeAPY + tradingFeeAPY;
+  // Projected APY components (estimates based on current utilization):
+  const BASE_BORROW_RATE_PER_HOUR = 0.0002; // 0.02% per hour from BorrowFeeEngineV2
+  const HOURS_PER_YEAR = 24 * 365;
+  
+  // Borrow fee APY = base_rate × hours/year × utilization
+  const borrowFeeAPY = BASE_BORROW_RATE_PER_HOUR * HOURS_PER_YEAR * utilizationDecimal * 100;
+  
+  // Trading fees: ~5 bps per trade, estimated volume = 20% of TVL daily when utilized
+  const tradingFeeAPY = 0.0005 * 0.2 * 365 * utilizationDecimal * 100;
+  
+  // Liquidation fees: ~5% penalty, assume 0.5% of OI liquidated daily under stress
+  // Liquidation APY contribution = 0.05 * 0.005 * 365 * utilization
+  const liquidationFeeAPY = 0.05 * 0.005 * 365 * utilizationDecimal * 100;
+  
+  // Total projected APY from all fee sources
+  const projectedAPY = borrowFeeAPY + tradingFeeAPY + liquidationFeeAPY;
+  
+  // Use actual share price APY if we have meaningful data, otherwise projected
+  // Note: For accurate historical APY, would need pool start timestamp
+  const estimatedAPY = sharePriceGain > 0.01 
+    ? sharePriceGain * 365 // Annualize if pool is young (assume ~1 day old as baseline)
+    : projectedAPY;
 
   return (
     <div className="px-6 py-8">
@@ -248,14 +265,24 @@ export default function LPPage() {
                 <div>
                   <p className="text-gray-400 text-sm mb-1">Estimated APY</p>
                   <p className="text-3xl font-bold text-lever-green">
-                    {estimatedAPY.toFixed(1)}%
+                    {estimatedAPY.toFixed(2)}%
                   </p>
                 </div>
                 <div className="text-right text-sm text-gray-500">
-                  <p>Borrow fees: {borrowFeeAPY.toFixed(1)}%</p>
-                  <p>Trading fees: {tradingFeeAPY.toFixed(1)}%</p>
-                  {sharePriceAPY > 0 && <p className="text-lever-green">Actual (7d): {sharePriceAPY.toFixed(1)}%</p>}
+                  <p>Borrow fees: {borrowFeeAPY.toFixed(2)}%</p>
+                  <p>Trading fees: {tradingFeeAPY.toFixed(2)}%</p>
+                  <p>Liquidations: {liquidationFeeAPY.toFixed(2)}%</p>
                 </div>
+              </div>
+              <div className="mt-2 flex justify-between items-center text-xs">
+                <span className="text-gray-500">
+                  APY scales with utilization ({utilizationPercent.toFixed(2)}% deployed)
+                </span>
+                {sharePriceGain > 0 && (
+                  <span className="text-lever-green">
+                    Actual gain: +{sharePriceGain.toFixed(4)}%
+                  </span>
+                )}
               </div>
             </div>
             

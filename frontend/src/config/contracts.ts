@@ -1,23 +1,23 @@
-// Contract addresses - BSC Testnet (Deployed 2026-02-06)
+// Contract addresses - BSC Testnet (Deployed 2026-02-06, Updated 19:15 UTC)
 export const CONTRACTS = {
   // BSC Testnet (Chain ID 97)
   97: {
     USDT: '0x0Fbe7F2C870636b1f3cFc6AD9d5767eb26A48F58',
-    LEDGER: '0xE865bD88ccf2f42D6cf9cC6deA04c702EF2585a3', // PositionLedgerV2
-    PRICE_ENGINE: '0x74F964E2bda482Ae78834fF4F4FBC892E1b6Aa33',       // Old - for execution price
-    PRICE_ENGINE_V2: '0x32Fe76322105f7990aACF5C6E2E103Aba68d0CbC',   // New - for mark price (PI)
+    LEDGER: '0x6fd251dec261512f758768447489855e215352db', // Fresh PositionLedgerV3
+    PRICE_ENGINE: '0x32Fe76322105f7990aACF5C6E2E103Aba68d0CbC',       // PriceEngineV2 - for mark price
+    PRICE_ENGINE_V2: '0x32Fe76322105f7990aACF5C6E2E103Aba68d0CbC',   // Same - for mark price (PI)
     FUNDING_ENGINE: '0xa6Ec543C82c564F9Cdb9a7e7682C68A43D1af802',
-    RISK_ENGINE: '0x5f696d1E0011C8cde0060C721335d2dF43198383', // RiskEngineV2 fixed
-    ROUTER: '0xa682e96A99C1CAf7b3FE45D2c20F108866a6AA23', // RouterV4 from DeployV2 (authorized on PositionLedgerV2)
+    RISK_ENGINE: '0x543ccad81a2eded2dc785272fcba899512a161b4', // SimpleRiskEngine
+    ROUTER: '0x062d91c07adc1c08624496029ba862023d6068c7', // Fresh RouterV4
     LP_POOL: '0x187d9CA1A112323a966C2BB1Ed05Fe436Aadd5C1',
     INSURANCE_FUND: '0xB8CA10ADbE4c0666eF701e0D0aeB27cFC5b81932',
     
-    // V2 Contracts (Deployed 2026-02-06 15:10 UTC)
-    LEDGER_V2: '0xE865bD88ccf2f42D6cf9cC6deA04c702EF2585a3',
+    // Latest Contracts (2026-02-06 19:00 UTC)
+    LEDGER_V3: '0x6fd251dec261512f758768447489855e215352db',
+    VAMM: '0xab015ae92092996ad3dc95a8874183c0fb5f9938', // Fixed vAMM
+    ROUTER_V4: '0x062d91c07adc1c08624496029ba862023d6068c7',
+    SIMPLE_RISK_ENGINE: '0x543ccad81a2eded2dc785272fcba899512a161b4',
     BORROW_FEE_ENGINE_V2: '0xc68e5b17f286624E31c468147360D36eA672BD35',
-    RISK_ENGINE_V2: '0x1dc88075A53c3fd1FE29136e8e692FDdAB82e28C',
-    VAMM: '0x4476efc08fbD6f25890C33f686720136544593fD',
-    ROUTER_V4: '0xa682e96A99C1CAf7b3FE45D2c20F108866a6AA23',
   },
 } as const;
 
@@ -71,8 +71,11 @@ export const LEDGER_ABI = [
         { name: 'totalLongOI', type: 'uint256' },
         { name: 'totalShortOI', type: 'uint256' },
         { name: 'maxOI', type: 'uint256' },
-        { name: 'fundingIndex', type: 'uint256' },
         { name: 'borrowIndex', type: 'uint256' },
+        { name: 'fundingIndex', type: 'int256' },
+        { name: 'resolutionTime', type: 'uint256' },
+        { name: 'liveStartTime', type: 'uint256' },
+        { name: 'isLive', type: 'bool' },
         { name: 'active', type: 'bool' },
       ]
     }] 

@@ -174,24 +174,30 @@ contract vAMM {
     function recenter(uint256 marketId) external onlyKeeper poolExists(marketId) {
         Pool storage pool = pools[marketId];
         
-        // Get current PI from PriceEngineV2
+        // Get current PI (probability) from PriceEngineV2
         uint256 currentPI = _getOraclePI(marketId);
         
-        // Maintain k but adjust reserves to match PI
-        // New vQ/vB should equal currentPI
-        // vQ × vB = k (constant)
-        // vQ = sqrt(k × PI), vB = sqrt(k / PI)
+        // For probability-based pricing: price = vQ / (vQ + vB)
+        // We want: vQ / (vQ + vB) = currentPI
+        // Keep total liquidity constant: vQ + vB = totalLiquidity
+        // Therefore: vQ = currentPI × totalLiquidity, vB = (1 - currentPI) × totalLiquidity
         
-        uint256 sqrtK = _sqrt(pool.k);
-        uint256 sqrtPI = _sqrt(currentPI * SCALE); // sqrt(PI × SCALE) to maintain precision
-        uint256 sqrtInvPI = _sqrt(SCALE * SCALE / currentPI);
+        uint256 totalLiquidity = pool.vQ + pool.vB;
         
-        pool.vQ = sqrtK * sqrtPI / SCALE;
-        pool.vB = sqrtK * sqrtInvPI / SCALE;
+        // Ensure minimum total liquidity
+        if (totalLiquidity < MIN_LIQUIDITY * 2) {
+            totalLiquidity = defaultVirtualLiquidity;
+        }
+        
+        pool.vQ = totalLiquidity * currentPI / SCALE;
+        pool.vB = totalLiquidity * (SCALE - currentPI) / SCALE;
         
         // Ensure minimum reserves
         if (pool.vQ < MIN_LIQUIDITY) pool.vQ = MIN_LIQUIDITY;
         if (pool.vB < MIN_LIQUIDITY) pool.vB = MIN_LIQUIDITY;
+        
+        // Update k for constant product trading
+        pool.k = pool.vQ * pool.vB;
         
         pool.lastPI = currentPI;
         pool.lastUpdate = block.timestamp;
@@ -221,39 +227,41 @@ contract vAMM {
     ) {
         Pool storage pool = pools[marketId];
         
-        // Get current spot price before trade
-        uint256 spotPrice = pool.vQ * SCALE / pool.vB;
+        // Get current spot price before trade (probability = vQ / (vQ + vB))
+        uint256 spotPrice = pool.vQ * SCALE / (pool.vQ + pool.vB);
         
         // Apply volatility spread guard
         uint256 spread = _calculateSpread(marketId);
+        
+        uint256 newVQ;
+        uint256 newVB;
         
         if (isBuy) {
             // Buying YES: trader sends Quote, receives Base
             // x · y = k → (vQ + Δin) · (vB - Δout) = k
             // Δout = vB - k / (vQ + Δin)
-            uint256 newVQ = pool.vQ + amountIn;
-            uint256 newVB = pool.k / newVQ;
+            newVQ = pool.vQ + amountIn;
+            newVB = pool.k / newVQ;
             amountOut = pool.vB - newVB;
             
             // Apply spread (reduces amount out)
             amountOut = amountOut * (SCALE - spread) / SCALE;
-            
-            executionPrice = amountIn * SCALE / amountOut;
         } else {
             // Selling YES: trader sends Base, receives Quote  
             // (vQ - Δout) · (vB + Δin) = k
             // Δout = vQ - k / (vB + Δin)
-            uint256 newVB = pool.vB + amountIn;
-            uint256 newVQ = pool.k / newVB;
+            newVB = pool.vB + amountIn;
+            newVQ = pool.k / newVB;
             amountOut = pool.vQ - newVQ;
             
             // Apply spread (reduces amount out)
             amountOut = amountOut * (SCALE - spread) / SCALE;
-            
-            executionPrice = amountOut * SCALE / amountIn;
         }
         
-        // Calculate price impact
+        // Execution price = probability after trade
+        executionPrice = newVQ * SCALE / (newVQ + newVB);
+        
+        // Calculate price impact (in basis points)
         if (isBuy) {
             priceImpact = executionPrice > spotPrice 
                 ? (executionPrice - spotPrice) * 10000 / spotPrice 
@@ -307,7 +315,8 @@ contract vAMM {
             pool.vQ = newVQ;
             pool.vB = newVB;
             
-            executionPrice = amountIn * SCALE / amountOut;
+            // Execution price = probability after trade
+            executionPrice = newVQ * SCALE / (newVQ + newVB);
         } else {
             // Selling YES
             uint256 newVB = pool.vB + amountIn;
@@ -323,7 +332,8 @@ contract vAMM {
             pool.vQ = newVQ;
             pool.vB = newVB;
             
-            executionPrice = amountOut * SCALE / amountIn;
+            // Execution price = probability after trade
+            executionPrice = newVQ * SCALE / (newVQ + newVB);
         }
         
         emit SwapExecuted(marketId, trader, isBuy, amountIn, amountOut, executionPrice);
@@ -336,7 +346,8 @@ contract vAMM {
      */
     function getSpotPrice(uint256 marketId) external view poolExists(marketId) returns (uint256) {
         Pool storage pool = pools[marketId];
-        return pool.vQ * SCALE / pool.vB;
+        // For binary outcomes: price = vQ / (vQ + vB) = probability
+        return pool.vQ * SCALE / (pool.vQ + pool.vB);
     }
     
     /**

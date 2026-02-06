@@ -189,10 +189,11 @@ export function LPPanel() {
           <p className="text-gray-400">APY</p>
           <p className="font-semibold text-lg text-lever-green">
             {utilization !== null
-              ? `${(Number(formatUnits(utilization, 18)) * 15).toFixed(1)}%`
+              ? `${(Number(formatUnits(utilization, 18)) * (0.0002 * 24 * 365 + 0.0005 * 0.2 * 365 + 0.05 * 0.005 * 365) * 100).toFixed(2)}%`
               : '—'
             }
           </p>
+          <p className="text-xs text-gray-500 mt-1">All fees</p>
         </div>
         <div className="bg-gray-700 rounded-lg p-3">
           <p className="text-gray-400">Utilization</p>

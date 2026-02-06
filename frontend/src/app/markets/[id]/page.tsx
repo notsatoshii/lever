@@ -194,8 +194,8 @@ export default function MarketPage() {
   }, [marketId, contracts]);
 
   // Dual prices: LIVE (for chart/execution) and MARK (for PnL/liquidations)
-  const livePriceNum = livePrice ? Number(formatUnits(livePrice, 18)) : 0.5;
-  const markPriceNum = markPrice ? Number(formatUnits(markPrice, 18)) : livePriceNum;
+  const livePriceNum = livePrice !== null ? Number(formatUnits(livePrice, 18)) : 0.5;
+  const markPriceNum = markPrice !== null ? Number(formatUnits(markPrice, 18)) : livePriceNum;
   const displayPrice = livePriceNum;  // Chart shows LIVE
   const displayNoPrice = 1 - livePriceNum;
   
