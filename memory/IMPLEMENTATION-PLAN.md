@@ -97,30 +97,30 @@
 - [x] Preview trades
 - [x] Position details view
 
-### PRIORITY 5: Testing & Deployment ⏳ NEXT
-**Status:** All V2 contracts created + tests written. Ready for local compile.
+### PRIORITY 5: Testing & Deployment ✅ DONE
+**Status:** V2 contracts deployed and configured!
 
-**To compile and test locally:**
-```bash
-cd contracts
-forge build
-forge test -vvv
+**Deployed Addresses (BSC Testnet 2026-02-06 15:10 UTC):**
+```
+PositionLedgerV2:   0xE865bD88ccf2f42D6cf9cC6deA04c702EF2585a3
+BorrowFeeEngineV2:  0xc68e5b17f286624E31c468147360D36eA672BD35
+RiskEngineV2:       0x1dc88075A53c3fd1FE29136e8e692FDdAB82e28C
+vAMM:               0x4476efc08fbD6f25890C33f686720136544593fD
+RouterV4:           0xa682e96A99C1CAf7b3FE45D2c20F108866a6AA23
 ```
 
 **Tasks:**
-- [ ] Compile all V2 contracts (forge not in sandbox)
-- [ ] Fix any compilation errors
-- [x] Create deployment script: `DeployV2.s.sol` ✅ Fixed addresses
-- [x] Unit tests created: `test/V2.t.sol` (40+ tests)
-- [ ] Run tests locally
-- [ ] Deploy to BSC Testnet:
-  - PositionLedgerV2
-  - BorrowFeeEngineV2
-  - RiskEngineV2
-  - vAMM
-  - RouterV4
-- [ ] Configure contract connections
-- [ ] Update frontend to use new contracts
+- [x] Compile all V2 contracts ✅
+- [x] Fix compilation errors ✅
+- [x] Create deployment script: `DeployV2.s.sol` ✅
+- [x] Unit tests created: `test/V2.t.sol` (57 tests)
+- [x] Run tests locally ✅
+- [x] Deploy to BSC Testnet ✅
+- [x] Configure contract connections ✅
+- [x] Initialize markets in RiskEngineV2 ✅
+- [x] Initialize markets in BorrowFeeEngineV2 ✅
+- [x] Initialize pools in vAMM ✅
+- [x] Update frontend config with V2 addresses ✅
 
 ### PRIORITY 6: Settlement & RFQ (Later)
 **Tasks:**

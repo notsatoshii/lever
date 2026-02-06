@@ -1,0 +1,51 @@
+No files changed, compilation skipped
+Script ran successfully.
+
+== Logs ==
+  Deploying V2 contracts with deployer: 0x7928251fE2D52CBECDCe0Fe9551aD9BF798347bc
+  PositionLedgerV2 deployed at: 0xE865bD88ccf2f42D6cf9cC6deA04c702EF2585a3
+  BorrowFeeEngineV2 deployed at: 0xc68e5b17f286624E31c468147360D36eA672BD35
+  RiskEngineV2 deployed at: 0x1dc88075A53c3fd1FE29136e8e692FDdAB82e28C
+  vAMM deployed at: 0x4476efc08fbD6f25890C33f686720136544593fD
+  RouterV4 deployed at: 0xa682e96A99C1CAf7b3FE45D2c20F108866a6AA23
+  RouterV4 configured
+  PositionLedgerV2 authorizations set
+  vAMM configured
+  
+=== Deployment Summary ===
+  PositionLedgerV2: 0xE865bD88ccf2f42D6cf9cC6deA04c702EF2585a3
+  BorrowFeeEngineV2: 0xc68e5b17f286624E31c468147360D36eA672BD35
+  RiskEngineV2: 0x1dc88075A53c3fd1FE29136e8e692FDdAB82e28C
+  vAMM: 0x4476efc08fbD6f25890C33f686720136544593fD
+  RouterV4: 0xa682e96A99C1CAf7b3FE45D2c20F108866a6AA23
+  
+Next steps:
+  1. Add market configs to RiskEngineV2
+  2. Initialize markets in BorrowFeeEngineV2
+  3. Initialize pools in vAMM
+  4. Update frontend with new addresses
+  5. Start JIT keeper for vAMM recentering
+
+## Setting up 1 EVM.
+
+==========================
+
+Chain 97
+
+Estimated gas price: 0.1 gwei
+
+Estimated total gas used for script: 8421718
+
+Estimated amount required: 0.0008421718 BNB
+
+==========================
+
+
+==========================
+
+ONCHAIN EXECUTION COMPLETE & SUCCESSFUL.
+
+Transactions saved to: /home/clawdbot/clawd/contracts/broadcast/DeployV2.s.sol/97/run-latest.json
+
+Sensitive values saved to: /home/clawdbot/clawd/contracts/cache/DeployV2.s.sol/97/run-latest.json
+
