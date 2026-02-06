@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { createPublicClient, http, parseUnits, formatUnits } from 'viem';
 import { bscTestnet } from 'viem/chains';
-import { CONTRACTS, USDT_ABI, LP_POOL_ABI } from '@/config/contracts';
+import { CONTRACTS, USDT_ABI, LP_POOL_ABI, LEDGER_ABI } from '@/config/contracts';
 
 const client = createPublicClient({
   chain: bscTestnet,
@@ -21,6 +21,7 @@ export default function LPPage() {
   // Pool stats
   const [totalAssets, setTotalAssets] = useState<bigint | null>(null);
   const [totalAllocated, setTotalAllocated] = useState<bigint | null>(null);
+  const [actualOI, setActualOI] = useState<bigint | null>(null); // Real OI from Ledger
   const [sharePrice, setSharePrice] = useState<bigint | null>(null);
   const [utilization, setUtilization] = useState<bigint | null>(null);
   const [cumulativeFees, setCumulativeFees] = useState<bigint | null>(null);
@@ -44,7 +45,7 @@ export default function LPPage() {
 
   const [pendingDepositAmount, setPendingDepositAmount] = useState<bigint | null>(null);
 
-  // Fetch pool stats
+  // Fetch pool stats + actual OI from Ledger
   useEffect(() => {
     async function fetchPoolStats() {
       try {
@@ -80,6 +81,24 @@ export default function LPPage() {
         setSharePrice(price as bigint);
         setUtilization(util as bigint);
         setCumulativeFees(cumFees as bigint);
+        
+        // Fetch ACTUAL OI from Ledger (markets 1-15)
+        // This is the real capital deployed, not the stale LP pool value
+        let totalOI = 0n;
+        for (let i = 1; i <= 15; i++) {
+          try {
+            const market = await client.readContract({
+              address: contracts.LEDGER as `0x${string}`,
+              abi: LEDGER_ABI,
+              functionName: 'getMarket',
+              args: [BigInt(i)],
+            }) as { totalLongOI: bigint; totalShortOI: bigint };
+            totalOI += market.totalLongOI + market.totalShortOI;
+          } catch {
+            // Market doesn't exist, skip
+          }
+        }
+        setActualOI(totalOI);
       } catch (e) {
         console.error('Error fetching pool stats:', e);
       }
@@ -185,8 +204,15 @@ export default function LPPage() {
     });
   };
 
+  // Use ACTUAL OI from Ledger for real utilization (LP pool's totalAllocated is stale)
+  const realUtilizationDecimal = (actualOI && totalAssets && totalAssets > 0n) 
+    ? Number(formatUnits(actualOI, 18)) / Number(formatUnits(totalAssets, 18))
+    : 0;
+  const realUtilizationPercent = realUtilizationDecimal * 100;
+  
+  // Keep old values for reference (LP pool's stale data)
   const utilizationPercent = utilization ? Number(formatUnits(utilization, 18)) * 100 : 0;
-  const utilizationDecimal = utilization ? Number(formatUnits(utilization, 18)) : 0;
+  const utilizationDecimal = realUtilizationDecimal; // Use real utilization for APY calc
   
   // APY Calculation - ALL fee sources flow to LPs:
   // 1. Borrow fees (continuous accrual from open positions)
@@ -242,13 +268,13 @@ export default function LPPage() {
               <div>
                 <p className="text-gray-400 text-sm mb-1">Capital Deployed</p>
                 <p className="text-2xl font-bold">
-                  ${totalAllocated ? Number(formatUnits(totalAllocated, 18)).toLocaleString() : '0'}
+                  ${actualOI ? Number(formatUnits(actualOI, 18)).toLocaleString() : '0'}
                 </p>
               </div>
               <div>
                 <p className="text-gray-400 text-sm mb-1">Utilization</p>
                 <p className="text-2xl font-bold">
-                  {utilization !== null ? `${utilizationPercent.toFixed(1)}%` : '—'}
+                  {realUtilizationPercent.toFixed(1)}%
                 </p>
               </div>
               <div>
@@ -276,7 +302,7 @@ export default function LPPage() {
               </div>
               <div className="mt-2 flex justify-between items-center text-xs">
                 <span className="text-gray-500">
-                  APY scales with utilization ({utilizationPercent.toFixed(2)}% deployed)
+                  APY scales with utilization ({realUtilizationPercent.toFixed(2)}% deployed)
                 </span>
                 {sharePriceGain > 0 && (
                   <span className="text-lever-green">
