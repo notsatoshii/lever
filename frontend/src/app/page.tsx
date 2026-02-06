@@ -2,9 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { fetchPolymarketMarkets, ParsedMarket } from '@/lib/polymarket';
+import { createPublicClient, http, formatUnits } from 'viem';
+import { bscTestnet } from 'viem/chains';
+import { CONTRACTS, PRICE_ENGINE_ABI, LEDGER_ABI } from '@/config/contracts';
+import { LEVER_MARKETS, getActiveMarkets, MarketConfig } from '@/config/markets';
+
+const client = createPublicClient({
+  chain: bscTestnet,
+  transport: http('https://data-seed-prebsc-1-s1.binance.org:8545'),
+});
 
 const CATEGORIES = ['All', 'Crypto', 'Politics', 'Finance', 'Sports', 'General'];
+
+interface MarketWithPrice extends MarketConfig {
+  yesPrice: number;
+  noPrice: number;
+  totalOI: number;
+  isLive: boolean;
+}
 
 // Skeleton loader for market cards
 function MarketCardSkeleton() {
@@ -28,36 +43,25 @@ function MarketCardSkeleton() {
 }
 
 // Market card component
-function MarketCard({ market }: { market: ParsedMarket }) {
+function MarketCard({ market }: { market: MarketWithPrice }) {
   const yesPercent = (market.yesPrice * 100).toFixed(0);
   const noPercent = (market.noPrice * 100).toFixed(0);
   
   return (
     <Link 
-      href={`/markets/${market.id}?polymarket=${market.slug}`}
+      href={`/markets/${market.id}?slug=${market.slug}`}
       className="block bg-gray-800 rounded-xl border border-gray-700 p-5 hover:border-gray-600 transition-all"
     >
       <div className="flex items-start gap-3 mb-4">
-        {market.image ? (
-          <img 
-            src={market.image} 
-            alt=""
-            className="w-10 h-10 rounded-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-lg">
-            📊
-          </div>
-        )}
+        <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-lg">
+          {market.icon}
+        </div>
         <h3 className="text-white font-medium text-sm leading-tight flex-1 line-clamp-2">
           {market.question}
         </h3>
       </div>
 
-      {/* Prices */}
+      {/* Prices from PriceEngine */}
       <div className="flex items-center gap-4 mb-4">
         <div>
           <span className="text-gray-500 text-xs">Yes</span>
@@ -67,15 +71,13 @@ function MarketCard({ market }: { market: ParsedMarket }) {
           <span className="text-gray-500 text-xs">No</span>
           <p className="font-bold text-lg text-lever-red">{noPercent}¢</p>
         </div>
-        {market.volume > 0 && (
+        {market.totalOI > 0 && (
           <div className="ml-auto text-right">
-            <span className="text-gray-500 text-xs">Volume</span>
+            <span className="text-gray-500 text-xs">Open Interest</span>
             <p className="font-semibold text-sm">
-              ${market.volume >= 1000000 
-                ? `${(market.volume / 1000000).toFixed(1)}M`
-                : market.volume >= 1000
-                  ? `${(market.volume / 1000).toFixed(0)}K`
-                  : market.volume.toFixed(0)
+              ${market.totalOI >= 1000 
+                ? `${(market.totalOI / 1000).toFixed(1)}K`
+                : market.totalOI.toFixed(0)
               }
             </p>
           </div>
@@ -100,42 +102,95 @@ function MarketCard({ market }: { market: ParsedMarket }) {
         </span>
       </div>
 
-      {/* Category */}
+      {/* Category & Status */}
       <div className="mt-3 flex justify-between text-xs text-gray-500">
         <span className="px-2 py-1 bg-gray-700 rounded">{market.category}</span>
-        <span>via Polymarket</span>
+        <span className={market.isLive ? 'text-green-400' : 'text-gray-500'}>
+          {market.isLive ? '● Live' : '○ Inactive'}
+        </span>
       </div>
     </Link>
   );
 }
 
 export default function HomePage() {
-  const [markets, setMarkets] = useState<ParsedMarket[]>([]);
+  const [markets, setMarkets] = useState<MarketWithPrice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const contracts = CONTRACTS[97];
 
+  // Fetch prices from PriceEngine for all markets
   useEffect(() => {
     async function loadMarkets() {
       try {
         setIsLoading(true);
-        const data = await fetchPolymarketMarkets(30);
-        setMarkets(data);
+        
+        const activeMarkets = getActiveMarkets();
+        
+        // Fetch on-chain data for each market
+        const marketsWithPrices = await Promise.all(
+          activeMarkets.map(async (market) => {
+            try {
+              const [price, marketData] = await Promise.all([
+                client.readContract({
+                  address: contracts.PRICE_ENGINE as `0x${string}`,
+                  abi: PRICE_ENGINE_ABI,
+                  functionName: 'getMarkPrice',
+                  args: [BigInt(market.id)],
+                }),
+                client.readContract({
+                  address: contracts.LEDGER as `0x${string}`,
+                  abi: LEDGER_ABI,
+                  functionName: 'getMarket',
+                  args: [BigInt(market.id)],
+                }),
+              ]);
+              
+              const yesPrice = Number(formatUnits(price as bigint, 18));
+              const mkt = marketData as any;
+              const totalOI = Number(formatUnits(
+                (mkt.totalLongOI || 0n) + (mkt.totalShortOI || 0n), 
+                18
+              ));
+              
+              return {
+                ...market,
+                yesPrice: Math.max(0.01, Math.min(0.99, yesPrice)),
+                noPrice: Math.max(0.01, Math.min(0.99, 1 - yesPrice)),
+                totalOI,
+                isLive: mkt.active || false,
+              };
+            } catch (e) {
+              // Return with default values if fetch fails
+              return {
+                ...market,
+                yesPrice: 0.5,
+                noPrice: 0.5,
+                totalOI: 0,
+                isLive: false,
+              };
+            }
+          })
+        );
+        
+        setMarkets(marketsWithPrices);
         setError(null);
       } catch (e) {
         console.error('Failed to load markets:', e);
-        setError('Failed to load markets from Polymarket');
+        setError('Failed to load market data');
       } finally {
         setIsLoading(false);
       }
     }
+    
     loadMarkets();
     
-    // Refresh every 60 seconds
-    const interval = setInterval(loadMarkets, 60000);
+    // Refresh every 10 seconds
+    const interval = setInterval(loadMarkets, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [contracts]);
 
   const filteredMarkets = markets.filter((market) => {
     const matchesSearch = market.question.toLowerCase().includes(searchQuery.toLowerCase());
@@ -184,7 +239,6 @@ export default function HomePage() {
       {error && (
         <div className="bg-red-900/30 border border-red-700 rounded-lg p-4 mb-6">
           <p className="text-red-400">{error}</p>
-          <p className="text-sm text-gray-400 mt-1">Showing cached data or try refreshing.</p>
         </div>
       )}
 
@@ -192,12 +246,12 @@ export default function HomePage() {
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {isLoading ? (
           // Skeleton loaders
-          Array.from({ length: 6 }).map((_, i) => (
+          Array.from({ length: 3 }).map((_, i) => (
             <MarketCardSkeleton key={i} />
           ))
         ) : filteredMarkets.length > 0 ? (
           filteredMarkets.map((market) => (
-            <MarketCard key={market.polymarketId} market={market} />
+            <MarketCard key={market.id} market={market} />
           ))
         ) : (
           <div className="col-span-full text-center py-12 text-gray-500">
@@ -208,11 +262,10 @@ export default function HomePage() {
 
       {/* Data source attribution */}
       <div className="mt-8 text-center text-xs text-gray-600">
-        Market data from{' '}
+        Prices from LEVER PriceEngine • Underlying markets via{' '}
         <a href="https://polymarket.com" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
           Polymarket
         </a>
-        {' '}• LEVER provides leverage, not the underlying markets
       </div>
     </div>
   );

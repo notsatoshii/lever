@@ -8,7 +8,7 @@ import { bscTestnet } from 'viem/chains';
 import { CONTRACTS, PRICE_ENGINE_ABI, LEDGER_ABI, FUNDING_ENGINE_ABI } from '@/config/contracts';
 import { TradingPanel } from '@/components/TradingPanel';
 import { PriceChart } from '@/components/PriceChart';
-import { fetchMarketBySlug, ParsedMarket } from '@/lib/polymarket';
+import { getMarketById, getMarketBySlug, MarketConfig } from '@/config/markets';
 
 const client = createPublicClient({
   chain: bscTestnet,
@@ -41,30 +41,14 @@ export default function MarketPage() {
   
   const contracts = CONTRACTS[97];
 
-  // Polymarket data
-  const [polymarket, setPolymarket] = useState<ParsedMarket | null>(null);
+  // Get market config from our config
+  const marketConfig = getMarketById(marketId) || getMarketBySlug(polymarketSlug || '');
   
   // On-chain data
   const [price, setPrice] = useState<bigint | null>(null);
   const [marketData, setMarketData] = useState<any>(null);
   const [fundingRate, setFundingRate] = useState<bigint | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Fetch Polymarket data
-  useEffect(() => {
-    async function fetchPolymarket() {
-      if (!polymarketSlug) return;
-      try {
-        const data = await fetchMarketBySlug(polymarketSlug);
-        if (data) setPolymarket(data);
-      } catch (e) {
-        console.error('Error fetching Polymarket data:', e);
-      }
-    }
-    fetchPolymarket();
-    const interval = setInterval(fetchPolymarket, 30000); // Refresh every 30s
-    return () => clearInterval(interval);
-  }, [polymarketSlug]);
 
   // Fetch on-chain data
   useEffect(() => {
@@ -103,9 +87,9 @@ export default function MarketPage() {
     return () => clearInterval(interval);
   }, [marketId, contracts]);
 
-  // Use Polymarket price if available, otherwise on-chain
-  const displayPrice = polymarket?.yesPrice ?? (price ? Number(formatUnits(price, 18)) : null);
-  const displayNoPrice = polymarket?.noPrice ?? (price ? 1 - Number(formatUnits(price, 18)) : null);
+  // Use on-chain price from PriceEngine
+  const displayPrice = price ? Number(formatUnits(price, 18)) : 0.5;
+  const displayNoPrice = price ? 1 - Number(formatUnits(price, 18)) : 0.5;
 
   const formatPrice = (p: number | null) => {
     if (p === null) return '—';
@@ -126,15 +110,10 @@ export default function MarketPage() {
     return `${prefix}${rateNum.toFixed(4)}%/h`;
   };
 
-  const formatVolume = (v: number) => {
-    if (v >= 1000000) return `$${(v / 1000000).toFixed(1)}M`;
-    if (v >= 1000) return `$${(v / 1000).toFixed(0)}K`;
-    return `$${v.toFixed(0)}`;
-  };
-
-  // Determine market info
-  const marketQuestion = polymarket?.question || `Market #${marketId}`;
-  const marketImage = polymarket?.image;
+  // Determine market info from config
+  const marketQuestion = marketConfig?.question || `Market #${marketId}`;
+  const marketIcon = marketConfig?.icon || '📊';
+  const marketCategory = marketConfig?.category || 'General';
 
   return (
     <div className="px-4 sm:px-6 py-6">
@@ -145,28 +124,14 @@ export default function MarketPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        {marketImage ? (
-          <img 
-            src={marketImage} 
-            alt=""
-            className="w-10 h-10 rounded-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-xl">
-            📊
-          </div>
-        )}
+        <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-xl">
+          {marketIcon}
+        </div>
         <div className="flex-1">
           <h1 className="text-base sm:text-lg font-semibold">{marketQuestion}</h1>
-          {polymarket && (
-            <p className="text-xs text-gray-500 mt-1">
-              Category: {polymarket.category}
-              {polymarket.volume > 0 && ` • Volume: ${formatVolume(polymarket.volume)}`}
-            </p>
-          )}
+          <p className="text-xs text-gray-500 mt-1">
+            Category: {marketCategory} • Market ID: {marketId}
+          </p>
         </div>
       </div>
 
@@ -205,11 +170,11 @@ export default function MarketPage() {
       </div>
 
       {/* Polymarket source link */}
-      {polymarket && (
+      {marketConfig?.slug && (
         <div className="mb-4 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg text-sm">
           <span className="text-gray-400">Underlying market: </span>
           <a 
-            href={`https://polymarket.com/market/${polymarket.slug}`} 
+            href={`https://polymarket.com/event/${marketConfig.slug}`} 
             target="_blank" 
             rel="noopener noreferrer"
             className="text-blue-400 hover:underline"
@@ -226,7 +191,7 @@ export default function MarketPage() {
           <PriceChart 
             marketId={marketId} 
             polymarketPrice={displayPrice}
-            marketQuestion={polymarket?.question}
+            marketQuestion={marketConfig?.question}
           />
         </div>
 
