@@ -10,9 +10,10 @@ import { useToast } from './Toast';
 interface TradingPanelProps {
   marketId: number;
   initialSide?: 'long' | 'short';
+  polymarketPrice?: number | null;
 }
 
-export function TradingPanel({ marketId, initialSide }: TradingPanelProps) {
+export function TradingPanel({ marketId, initialSide, polymarketPrice }: TradingPanelProps) {
   const MARKET_ID = BigInt(marketId);
   const { address, isConnected } = useAccount();
   const chainId = 97;

@@ -13,9 +13,11 @@ const client = createPublicClient({
 
 interface PriceChartProps {
   marketId: number;
+  polymarketPrice?: number | null;
+  marketQuestion?: string;
 }
 
-export function PriceChart({ marketId }: PriceChartProps) {
+export function PriceChart({ marketId, polymarketPrice, marketQuestion }: PriceChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);

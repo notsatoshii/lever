@@ -3,27 +3,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useAccount } from 'wagmi';
 import { createPublicClient, http, formatUnits } from 'viem';
 import { bscTestnet } from 'viem/chains';
 import { CONTRACTS, PRICE_ENGINE_ABI, LEDGER_ABI, FUNDING_ENGINE_ABI } from '@/config/contracts';
 import { TradingPanel } from '@/components/TradingPanel';
 import { PriceChart } from '@/components/PriceChart';
+import { fetchMarketBySlug, ParsedMarket } from '@/lib/polymarket';
 
 const client = createPublicClient({
   chain: bscTestnet,
   transport: http('https://data-seed-prebsc-1-s1.binance.org:8545'),
 });
-
-const MARKETS: Record<number, { name: string; question: string; icon: string }> = {
-  0: { name: 'Test Market', question: 'Testnet demo market', icon: '🧪' },
-  1: { name: 'BTC $150K', question: 'Will Bitcoin exceed $150,000 by end of 2026?', icon: '₿' },
-  2: { name: 'Fed Rate Cut', question: 'Will the Fed cut rates by 50+ bps in 2026?', icon: '🏦' },
-  3: { name: 'ETH Flippening', question: 'Will ETH market cap exceed BTC in 2026?', icon: '💎' },
-  4: { name: 'US Recession', question: 'Will the US enter a recession in 2026?', icon: '📉' },
-  5: { name: 'Champions League', question: 'Will Real Madrid win Champions League 2026?', icon: '⚽' },
-  6: { name: 'SOL $500', question: 'Will Solana exceed $500 in 2026?', icon: '◎' },
-};
 
 // Recent trades - would come from indexer in production
 function RecentTrades() {
@@ -46,18 +36,39 @@ export default function MarketPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const marketId = Number(params.id) || 1;
+  const polymarketSlug = searchParams.get('polymarket');
   const initialSide = searchParams.get('side') as 'long' | 'short' | null;
   
   const contracts = CONTRACTS[97];
-  const market = MARKETS[marketId] || MARKETS[1];
 
+  // Polymarket data
+  const [polymarket, setPolymarket] = useState<ParsedMarket | null>(null);
+  
+  // On-chain data
   const [price, setPrice] = useState<bigint | null>(null);
   const [marketData, setMarketData] = useState<any>(null);
   const [fundingRate, setFundingRate] = useState<bigint | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch Polymarket data
   useEffect(() => {
-    async function fetchData() {
+    async function fetchPolymarket() {
+      if (!polymarketSlug) return;
+      try {
+        const data = await fetchMarketBySlug(polymarketSlug);
+        if (data) setPolymarket(data);
+      } catch (e) {
+        console.error('Error fetching Polymarket data:', e);
+      }
+    }
+    fetchPolymarket();
+    const interval = setInterval(fetchPolymarket, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, [polymarketSlug]);
+
+  // Fetch on-chain data
+  useEffect(() => {
+    async function fetchOnChainData() {
       try {
         const [priceData, mktData, funding] = await Promise.all([
           client.readContract({
@@ -83,18 +94,22 @@ export default function MarketPage() {
         setMarketData(mktData);
         setFundingRate(funding as bigint);
       } catch (e) {
-        console.error('Error fetching market data:', e);
+        console.error('Error fetching on-chain data:', e);
       }
       setIsLoading(false);
     }
-    fetchData();
-    const interval = setInterval(fetchData, 5000);
+    fetchOnChainData();
+    const interval = setInterval(fetchOnChainData, 5000);
     return () => clearInterval(interval);
   }, [marketId, contracts]);
 
-  const formatPrice = (p: bigint | null) => {
-    if (!p) return '—';
-    return `${(Number(formatUnits(p, 18)) * 100).toFixed(1)}¢`;
+  // Use Polymarket price if available, otherwise on-chain
+  const displayPrice = polymarket?.yesPrice ?? (price ? Number(formatUnits(price, 18)) : null);
+  const displayNoPrice = polymarket?.noPrice ?? (price ? 1 - Number(formatUnits(price, 18)) : null);
+
+  const formatPrice = (p: number | null) => {
+    if (p === null) return '—';
+    return `${(p * 100).toFixed(1)}¢`;
   };
 
   const formatOI = (oi: bigint | undefined) => {
@@ -111,8 +126,18 @@ export default function MarketPage() {
     return `${prefix}${rateNum.toFixed(4)}%/h`;
   };
 
+  const formatVolume = (v: number) => {
+    if (v >= 1000000) return `$${(v / 1000000).toFixed(1)}M`;
+    if (v >= 1000) return `$${(v / 1000).toFixed(0)}K`;
+    return `$${v.toFixed(0)}`;
+  };
+
+  // Determine market info
+  const marketQuestion = polymarket?.question || `Market #${marketId}`;
+  const marketImage = polymarket?.image;
+
   return (
-    <div className="px-6 py-6">
+    <div className="px-4 sm:px-6 py-6">
       {/* Market Header */}
       <div className="flex items-center gap-4 mb-6">
         <Link href="/" className="text-gray-400 hover:text-white">
@@ -120,53 +145,89 @@ export default function MarketPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-xl">
-          {market.icon}
-        </div>
+        {marketImage ? (
+          <img 
+            src={marketImage} 
+            alt=""
+            className="w-10 h-10 rounded-full object-cover"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        ) : (
+          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-xl">
+            📊
+          </div>
+        )}
         <div className="flex-1">
-          <h1 className="text-lg font-semibold">{market.question}</h1>
+          <h1 className="text-base sm:text-lg font-semibold">{marketQuestion}</h1>
+          {polymarket && (
+            <p className="text-xs text-gray-500 mt-1">
+              Category: {polymarket.category}
+              {polymarket.volume > 0 && ` • Volume: ${formatVolume(polymarket.volume)}`}
+            </p>
+          )}
         </div>
       </div>
 
       {/* Stats Bar - Responsive Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6 pb-4 border-b border-gray-800">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6 pb-4 border-b border-gray-800">
         <div>
-          <span className="text-gray-500 text-sm">Price</span>
-          <p className="text-xl font-bold">{isLoading ? '—' : formatPrice(price)}</p>
+          <span className="text-gray-500 text-xs sm:text-sm">Yes Price</span>
+          <p className="text-lg sm:text-xl font-bold text-lever-green">{formatPrice(displayPrice)}</p>
         </div>
         <div>
-          <span className="text-gray-500 text-sm">No Price</span>
-          <p className="text-lg font-semibold">{isLoading || !price ? '—' : `${(100 - Number(formatUnits(price, 18)) * 100).toFixed(1)}¢`}</p>
+          <span className="text-gray-500 text-xs sm:text-sm">No Price</span>
+          <p className="text-lg sm:text-xl font-bold text-lever-red">{formatPrice(displayNoPrice)}</p>
         </div>
         <div>
-          <span className="text-gray-500 text-sm">OI (L/S)</span>
-          <p className="text-lg font-semibold">
+          <span className="text-gray-500 text-xs sm:text-sm">OI (L/S)</span>
+          <p className="text-sm sm:text-lg font-semibold">
             <span className="text-green-400">{formatOI(marketData?.totalLongOI)}</span>
             {' / '}
             <span className="text-red-400">{formatOI(marketData?.totalShortOI)}</span>
           </p>
         </div>
         <div>
-          <span className="text-gray-500 text-sm">Funding Rate</span>
-          <p className={`text-lg font-semibold ${fundingRate && fundingRate > 0n ? 'text-green-400' : 'text-red-400'}`}>
+          <span className="text-gray-500 text-xs sm:text-sm">Funding Rate</span>
+          <p className={`text-sm sm:text-lg font-semibold ${fundingRate && fundingRate > 0n ? 'text-green-400' : 'text-red-400'}`}>
             {formatFunding(fundingRate)}
           </p>
         </div>
         <div>
-          <span className="text-gray-500 text-sm">Max Leverage</span>
-          <p className="text-lg font-semibold">5x</p>
+          <span className="text-gray-500 text-xs sm:text-sm">Max Leverage</span>
+          <p className="text-lg sm:text-xl font-semibold">5x</p>
         </div>
         <div>
-          <span className="text-gray-500 text-sm">Status</span>
-          <p className="text-lg font-semibold text-green-400">Live</p>
+          <span className="text-gray-500 text-xs sm:text-sm">Status</span>
+          <p className="text-lg sm:text-xl font-semibold text-green-400">Live</p>
         </div>
       </div>
+
+      {/* Polymarket source link */}
+      {polymarket && (
+        <div className="mb-4 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg text-sm">
+          <span className="text-gray-400">Underlying market: </span>
+          <a 
+            href={`https://polymarket.com/event/${polymarket.slug}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:underline"
+          >
+            View on Polymarket →
+          </a>
+        </div>
+      )}
 
       {/* Main Content - Responsive Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* Chart - Full width on mobile, 7 cols on desktop */}
         <div className="lg:col-span-7">
-          <PriceChart marketId={marketId} />
+          <PriceChart 
+            marketId={marketId} 
+            polymarketPrice={displayPrice}
+            marketQuestion={polymarket?.question}
+          />
         </div>
 
         {/* Recent Trades - Hidden on mobile, 2 cols on desktop */}
@@ -176,7 +237,11 @@ export default function MarketPage() {
 
         {/* Trading Panel - Full width on mobile, 3 cols on desktop */}
         <div className="lg:col-span-3">
-          <TradingPanel marketId={marketId} initialSide={initialSide || undefined} />
+          <TradingPanel 
+            marketId={marketId} 
+            initialSide={initialSide || undefined}
+            polymarketPrice={displayPrice}
+          />
         </div>
       </div>
     </div>
