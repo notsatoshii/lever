@@ -19,8 +19,9 @@ interface MarketWithPrice extends MarketConfig {
 
 // Market card component
 function MarketCard({ market }: { market: MarketWithPrice }) {
-  const yesPercent = (market.yesPrice * 100).toFixed(0);
-  const noPercent = (market.noPrice * 100).toFixed(0);
+  // Round yesPercent and derive noPercent to always sum to 100
+  const yesPercent = Math.round(market.yesPrice * 100);
+  const noPercent = 100 - yesPercent;
   const isExpiring = market.daysToExpiry !== null && market.daysToExpiry <= 7 && market.daysToExpiry > 0;
   
   return (
