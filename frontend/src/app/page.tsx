@@ -5,129 +5,36 @@ import Link from 'next/link';
 import { createPublicClient, http, formatUnits } from 'viem';
 import { bscTestnet } from 'viem/chains';
 import { CONTRACTS, PRICE_ENGINE_ABI, LEDGER_ABI } from '@/config/contracts';
+import { LEVER_MARKETS, MarketConfig, isExpiringSoon } from '@/config/markets';
+
 const CATEGORIES = ['All', 'Crypto', 'Politics', 'Finance', 'Sports', 'General'];
-
-interface MarketConfig {
-  id: number;
-  name: string;
-  question: string;
-  slug: string;
-  category: 'Crypto' | 'Politics' | 'Finance' | 'Sports' | 'General';
-  icon: string;
-  active: boolean;
-}
-
-// 10 Trending Polymarket markets (Updated 2026-02-06)
-const LEVER_MARKETS: MarketConfig[] = [
-  {
-    id: 1,
-    name: 'Fed No Change March',
-    question: 'Will there be no change in Fed interest rates after the March 2026 meeting?',
-    slug: 'will-there-be-no-change-in-fed-interest-rates-after-the-march-2026-meeting',
-    category: 'Finance',
-    icon: '🏦',
-    active: true,
-  },
-  {
-    id: 2,
-    name: 'Kevin Warsh Fed Chair',
-    question: 'Will Trump nominate Kevin Warsh as the next Fed chair?',
-    slug: 'will-trump-nominate-kevin-warsh-as-the-next-fed-chair',
-    category: 'Politics',
-    icon: '🏛️',
-    active: true,
-  },
-  {
-    id: 3,
-    name: 'Bitcoin $85K Feb',
-    question: 'Will Bitcoin reach $85,000 in February?',
-    slug: 'will-bitcoin-reach-85k-in-february-2026',
-    category: 'Crypto',
-    icon: '₿',
-    active: true,
-  },
-  {
-    id: 4,
-    name: 'Bitcoin Dip $55K',
-    question: 'Will Bitcoin dip to $55,000 in February?',
-    slug: 'will-bitcoin-dip-to-55k-in-february-2026',
-    category: 'Crypto',
-    icon: '📉',
-    active: true,
-  },
-  {
-    id: 5,
-    name: 'Russia-Ukraine Ceasefire',
-    question: 'Russia x Ukraine ceasefire by March 31, 2026?',
-    slug: 'russia-x-ukraine-ceasefire-by-march-31-2026',
-    category: 'Politics',
-    icon: '🕊️',
-    active: true,
-  },
-  {
-    id: 6,
-    name: 'Seahawks vs Patriots',
-    question: 'Seahawks vs. Patriots - Who wins?',
-    slug: 'nfl-sea-ne-2026-02-08',
-    category: 'Sports',
-    icon: '🏈',
-    active: true,
-  },
-  {
-    id: 7,
-    name: 'Trump Says Kamala',
-    question: 'Will Trump say "Kamala" this week? (February 8)',
-    slug: 'will-trump-say-kamala-this-week-february-8',
-    category: 'Politics',
-    icon: '🎤',
-    active: true,
-  },
-  {
-    id: 8,
-    name: 'Bitcoin Up/Down Feb 6',
-    question: 'Bitcoin Up or Down on February 6?',
-    slug: 'bitcoin-up-or-down-on-february-6',
-    category: 'Crypto',
-    icon: '📊',
-    active: true,
-  },
-  {
-    id: 9,
-    name: 'Hillary 2028 Dem',
-    question: 'Will Hillary Clinton win the 2028 Democratic presidential nomination?',
-    slug: 'will-hillary-clinton-win-the-2028-democratic-presidential-nomination',
-    category: 'Politics',
-    icon: '🗳️',
-    active: true,
-  },
-  {
-    id: 10,
-    name: 'Greg Abbott 2028',
-    question: 'Will Greg Abbott win the 2028 US Presidential Election?',
-    slug: 'will-greg-abbott-win-the-2028-us-presidential-election',
-    category: 'Politics',
-    icon: '🇺🇸',
-    active: true,
-  },
-];
 
 interface MarketWithPrice extends MarketConfig {
   yesPrice: number;
   noPrice: number;
   totalOI: number;
   isLive: boolean;
+  daysToExpiry: number | null;
 }
 
 // Market card component
 function MarketCard({ market }: { market: MarketWithPrice }) {
   const yesPercent = (market.yesPrice * 100).toFixed(0);
   const noPercent = (market.noPrice * 100).toFixed(0);
+  const isExpiring = market.daysToExpiry !== null && market.daysToExpiry <= 7 && market.daysToExpiry > 0;
   
   return (
     <Link 
       href={`/markets/${market.id}?slug=${market.slug}`}
-      className="block bg-gray-800 rounded-xl border border-gray-700 p-5 hover:border-gray-600 transition-all"
+      className="block bg-gray-800 rounded-xl border border-gray-700 p-5 hover:border-gray-600 transition-all relative"
     >
+      {/* Expiring soon badge */}
+      {isExpiring && (
+        <div className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+          {market.daysToExpiry}d left
+        </div>
+      )}
+      
       <div className="flex items-start gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-lg">
           {market.icon}
@@ -189,7 +96,16 @@ function MarketCard({ market }: { market: MarketWithPrice }) {
   );
 }
 
-// Create initial markets data
+// Calculate days to expiry
+function getDaysToExpiry(expiry: string): number | null {
+  if (!expiry) return null;
+  const expiryDate = new Date(expiry);
+  const now = new Date();
+  const diffMs = expiryDate.getTime() - now.getTime();
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+}
+
+// Create initial markets data from config
 const INITIAL_MARKETS: MarketWithPrice[] = LEVER_MARKETS
   .filter(m => m.active)
   .map(m => ({
@@ -198,6 +114,7 @@ const INITIAL_MARKETS: MarketWithPrice[] = LEVER_MARKETS
     noPrice: 0.5,
     totalOI: 0,
     isLive: true,
+    daysToExpiry: getDaysToExpiry(m.expiry),
   }));
 
 export default function HomePage() {
@@ -206,10 +123,8 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const contracts = CONTRACTS[97];
 
-  // Fetch on-chain prices to update
+  // Fetch on-chain prices
   useEffect(() => {
-
-    // Then fetch real prices from chain
     async function fetchPrices() {
       try {
         const client = createPublicClient({
@@ -268,9 +183,19 @@ export default function HomePage() {
   }, [contracts]);
 
   const filteredMarkets = markets.filter((market) => {
-    const matchesSearch = market.question.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = market.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          market.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || market.category === selectedCategory;
     return matchesSearch && matchesCategory;
+  });
+
+  // Sort: expiring soon first, then by ID
+  const sortedMarkets = [...filteredMarkets].sort((a, b) => {
+    const aExpiring = a.daysToExpiry !== null && a.daysToExpiry <= 7 && a.daysToExpiry > 0;
+    const bExpiring = b.daysToExpiry !== null && b.daysToExpiry <= 7 && b.daysToExpiry > 0;
+    if (aExpiring && !bExpiring) return -1;
+    if (!aExpiring && bExpiring) return 1;
+    return a.id - b.id;
   });
 
   return (
@@ -312,20 +237,20 @@ export default function HomePage() {
 
       {/* Markets grid */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        {filteredMarkets.length > 0 ? (
-          filteredMarkets.map((market) => (
+        {sortedMarkets.length > 0 ? (
+          sortedMarkets.map((market) => (
             <MarketCard key={market.id} market={market} />
           ))
         ) : (
           <div className="col-span-full text-center py-12 text-gray-500">
-            <p>No markets available.</p>
+            <p>No markets found.</p>
           </div>
         )}
       </div>
 
       {/* Data source attribution */}
       <div className="mt-8 text-center text-xs text-gray-600">
-        Prices from LEVER Protocol • Underlying markets via{' '}
+        Prices synced from LEVER Protocol • Underlying markets via{' '}
         <a href="https://polymarket.com" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
           Polymarket
         </a>
