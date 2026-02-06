@@ -16,26 +16,72 @@ const client = createPublicClient({
   transport: http('https://data-seed-prebsc-1-s1.binance.org:8545'),
 });
 
+// PositionOpened event ABI for fetching recent trades
+const POSITION_OPENED_EVENT = {
+  type: 'event',
+  name: 'PositionOpened',
+  inputs: [
+    { indexed: true, name: 'trader', type: 'address' },
+    { indexed: true, name: 'marketId', type: 'uint256' },
+    { indexed: false, name: 'isLong', type: 'bool' },
+    { indexed: false, name: 'size', type: 'uint256' },
+    { indexed: false, name: 'collateral', type: 'uint256' },
+    { indexed: false, name: 'entryPrice', type: 'uint256' },
+    { indexed: false, name: 'markPrice', type: 'uint256' },
+  ],
+} as const;
+
 // Recent trades component - fetches from blockchain events
 function RecentTrades({ marketId }: { marketId: number }) {
   const [trades, setTrades] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch actual trade events from blockchain/indexer
-    // For now, simulate loading and show placeholder
     const fetchTrades = async () => {
       setIsLoading(true);
       try {
-        // In production: fetch from subgraph or indexer
-        // const response = await fetch(`/api/trades?marketId=${marketId}`);
-        // const data = await response.json();
-        // setTrades(data);
+        const contracts = CONTRACTS[97];
+        const currentBlock = await client.getBlockNumber();
+        // Fetch last ~2000 blocks (~1.5 hours of trades)
+        const fromBlock = currentBlock > 2000n ? currentBlock - 2000n : 0n;
         
-        // Placeholder - no trades yet
-        setTrades([]);
+        const logs = await client.getLogs({
+          address: contracts.ROUTER as `0x${string}`,
+          event: POSITION_OPENED_EVENT,
+          args: {
+            marketId: BigInt(marketId),
+          },
+          fromBlock,
+          toBlock: 'latest',
+        });
+        
+        // Process logs into trade format
+        const processedTrades = await Promise.all(
+          logs.slice(-20).reverse().map(async (log) => {
+            const block = await client.getBlock({ blockNumber: log.blockNumber });
+            const timestamp = Number(block.timestamp);
+            const date = new Date(timestamp * 1000);
+            const timeStr = date.toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              hour12: false 
+            });
+            
+            return {
+              time: timeStr,
+              side: log.args.isLong ? 'LONG' : 'SHORT',
+              size: `$${Number(formatUnits(log.args.size || 0n, 18)).toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+              price: `${(Number(formatUnits(log.args.entryPrice || 0n, 18)) * 100).toFixed(1)}%`,
+              txHash: log.transactionHash,
+              trader: log.args.trader,
+            };
+          })
+        );
+        
+        setTrades(processedTrades);
       } catch (e) {
         console.error('Failed to fetch trades:', e);
+        setTrades([]);
       }
       setIsLoading(false);
     };
