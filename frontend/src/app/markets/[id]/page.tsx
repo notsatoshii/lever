@@ -158,17 +158,17 @@ export default function MarketPage() {
         setFundingRate(funding as bigint);
         
         // Fetch Mark Price (PI) and expiry from PriceEngineV2
-        if (contracts.PRICE_ENGINE_V2) {
+        if (contracts.PRICE_ENGINE) {
           try {
             const [markPriceData, configData] = await Promise.all([
               client.readContract({
-                address: contracts.PRICE_ENGINE_V2 as `0x${string}`,
+                address: contracts.PRICE_ENGINE as `0x${string}`,
                 abi: PRICE_ENGINE_V2_ABI,
                 functionName: 'getMarkPrice',
                 args: [BigInt(marketId)],
               }),
               client.readContract({
-                address: contracts.PRICE_ENGINE_V2 as `0x${string}`,
+                address: contracts.PRICE_ENGINE as `0x${string}`,
                 abi: PRICE_ENGINE_V2_ABI,
                 functionName: 'getMarketConfig',
                 args: [BigInt(marketId)],

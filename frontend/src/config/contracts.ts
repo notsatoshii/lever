@@ -1,24 +1,24 @@
-// Contract addresses - BSC Testnet (Deployed 2026-02-06, Updated 19:15 UTC)
+// Contract addresses - BSC Testnet
+// Last updated: 2026-02-06 20:05 UTC
 export const CONTRACTS = {
   // BSC Testnet (Chain ID 97)
   97: {
+    // Core tokens
     USDT: '0x0Fbe7F2C870636b1f3cFc6AD9d5767eb26A48F58',
-    LEDGER: '0x6fd251dec261512f758768447489855e215352db', // Fresh PositionLedgerV3
-    PRICE_ENGINE: '0x32Fe76322105f7990aACF5C6E2E103Aba68d0CbC',       // PriceEngineV2 - for mark price
-    PRICE_ENGINE_V2: '0x32Fe76322105f7990aACF5C6E2E103Aba68d0CbC',   // Same - for mark price (PI)
+    
+    // Main contracts (current deployment)
+    ROUTER: '0x90f2e2dad537f8f8eaa9d659538b26cb4bb5eea0',       // RouterV5 - LP integration
+    LEDGER: '0x6fd251dec261512f758768447489855e215352db',       // PositionLedgerV3
+    VAMM: '0xab015ae92092996ad3dc95a8874183c0fb5f9938',         // vAMM (entry price)
+    PRICE_ENGINE: '0x32Fe76322105f7990aACF5C6E2E103Aba68d0CbC', // PriceEngineV2 (smoothed PI)
+    RISK_ENGINE: '0x543ccad81a2eded2dc785272fcba899512a161b4',  // SimpleRiskEngine
+    BORROW_FEE_ENGINE: '0xc68e5b17f286624E31c468147360D36eA672BD35', // BorrowFeeEngineV2
     FUNDING_ENGINE: '0xa6Ec543C82c564F9Cdb9a7e7682C68A43D1af802',
-    RISK_ENGINE: '0x543ccad81a2eded2dc785272fcba899512a161b4', // SimpleRiskEngine
-    ROUTER: '0x90f2e2dad537f8f8eaa9d659538b26cb4bb5eea0', // RouterV5 with LP integration
     LP_POOL: '0x187d9CA1A112323a966C2BB1Ed05Fe436Aadd5C1',
     INSURANCE_FUND: '0xB8CA10ADbE4c0666eF701e0D0aeB27cFC5b81932',
     
-    // Latest Contracts (2026-02-06 19:00 UTC)
-    LEDGER_V3: '0x6fd251dec261512f758768447489855e215352db',
-    VAMM: '0xab015ae92092996ad3dc95a8874183c0fb5f9938', // Fixed vAMM
-    ROUTER_V4: '0x062d91c07adc1c08624496029ba862023d6068c7',
-    ROUTER_V5: '0x90f2e2dad537f8f8eaa9d659538b26cb4bb5eea0', // LP integration
-    SIMPLE_RISK_ENGINE: '0x543ccad81a2eded2dc785272fcba899512a161b4',
-    BORROW_FEE_ENGINE_V2: '0xc68e5b17f286624E31c468147360D36eA672BD35',
+    // Deprecated (kept for reference/migration)
+    ROUTER_V4: '0x062d91c07adc1c08624496029ba862023d6068c7',    // Old router without LP integration
   },
 } as const;
 

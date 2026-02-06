@@ -1,174 +1,81 @@
 # LEVER Protocol
 
-**Synthetic Perpetuals for Prediction Markets**
+Synthetic perpetuals layer for prediction markets. Leverage for Polymarket, Kalshi, and more.
 
-Trade leveraged positions on any prediction market outcome without affecting the underlying market's liquidity.
+## Architecture
 
-## The Problem
+**Key Principle:** Entry Price ≠ Mark Price
+- **Entry Price:** From vAMM (includes slippage)
+- **Mark Price:** From PriceEngineV2 (smoothed Probability Index)
 
-Prediction markets (Polymarket, Kalshi, etc.) have limited liquidity. Large trades move prices significantly, making it impossible to:
-- Take meaningful positions without massive slippage
-- Trade with leverage
-- Hedge effectively
+### Core Contracts (BSC Testnet)
 
-## The Solution
+| Contract | Address | Description |
+|----------|---------|-------------|
+| RouterV5 | `0x90f2e2dad537f8f8eaa9d659538b26cb4bb5eea0` | Main entry point with LP integration |
+| PositionLedger | `0x6fd251dec261512f758768447489855e215352db` | Position state management |
+| vAMM | `0xab015ae92092996ad3dc95a8874183c0fb5f9938` | Entry/exit price calculation |
+| PriceEngineV2 | `0x32Fe76322105f7990aACF5C6E2E103Aba68d0CbC` | Smoothed mark price (PI) |
+| SimpleRiskEngine | `0x543ccad81a2eded2dc785272fcba899512a161b4` | Margin validation |
+| BorrowFeeEngineV2 | `0xc68e5b17f286624E31c468147360D36eA672BD35` | Dynamic borrow rates |
+| LPPool | `0x187d9CA1A112323a966C2BB1Ed05Fe436Aadd5C1` | Liquidity provider pool |
+| USDT | `0x0Fbe7F2C870636b1f3cFc6AD9d5767eb26A48F58` | Test collateral token |
 
-LEVER creates a synthetic derivatives layer on top of prediction markets:
-
-- **For Traders**: Get up to 10x leverage on any prediction market outcome
-- **For LPs**: Earn yield by providing capital that backs leveraged positions
-- **For Markets**: Prices track real prediction markets via oracles, but trades don't affect underlying liquidity
-
-## How It Works
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  POLYMARKET │────►│   ORACLE    │────►│    LEVER    │
-│  (or other) │     │  (price)    │     │  (trading)  │
-└─────────────┘     └─────────────┘     └─────────────┘
-                                              │
-                    ┌─────────────────────────┴───────┐
-                    │                                 │
-              ┌─────▼─────┐                    ┌──────▼──────┐
-              │  TRADERS  │                    │     LPs     │
-              │ (leverage)│                    │ (yield)     │
-              └───────────┘                    └─────────────┘
-```
-
-1. **Oracles** fetch real-time probabilities from prediction markets
-2. **Traders** open leveraged long/short positions on outcomes
-3. **LPs** provide USDC that backs trader positions
-4. **Funding rates** balance long/short demand (zero-sum between traders)
-5. **Liquidations** protect LP capital when positions go underwater
-
-## Example
-
-> "Will Bitcoin hit $100k by end of 2025?"
-
-On Polymarket, this trades at 65% ($0.65 per share). You're bullish.
-
-**Without LEVER:**
-- Buy $10,000 of YES shares
-- If probability goes to 80%, you make ~$2,300 (23%)
-- Large order moves price significantly
-
-**With LEVER:**
-- Deposit $1,000 USDC as collateral
-- Open 10x leveraged long at 65%
-- If probability goes to 80%, you make ~$2,300 (230% on capital)
-- No impact on underlying Polymarket liquidity
-
-## Repository Structure
+## Project Structure
 
 ```
-lever/
-├── contracts/           # Solidity smart contracts
-│   ├── src/            # Core contracts
-│   │   ├── PositionLedger.sol
-│   │   ├── PriceEngine.sol
-│   │   ├── FundingEngine.sol
-│   │   ├── RiskEngine.sol
-│   │   ├── LiquidationEngine.sol
-│   │   ├── Router.sol
-│   │   └── LPPool.sol
-│   ├── test/           # Foundry tests
-│   └── docs/           # Technical documentation
-├── app/                # Frontend (coming soon)
-└── keeper/             # Keeper bot (coming soon)
+├── contracts/          # Solidity smart contracts
+│   └── src/
+│       ├── RouterV5.sol         # Main router with LP integration
+│       ├── PositionLedgerV2.sol # Position management
+│       ├── PriceEngineV2.sol    # Smoothed price oracle
+│       ├── BorrowFeeEngineV2.sol # Dynamic borrow rates
+│       ├── LPPool.sol           # LP token & fee distribution
+│       └── vAMM.sol             # Virtual AMM for entry prices
+├── frontend/           # Next.js frontend
+├── keeper/             # Keeper scripts
+│   ├── polymarket-keeper-v3.ts  # Main price keeper
+│   ├── price-keeper.ts          # Price updates
+│   └── jit-keeper.ts            # JIT operations
+└── vault/              # Documentation & research
 ```
-
-## Quick Start
-
-```bash
-# Clone
-git clone https://github.com/notsatoshii/lever.git
-cd lever/contracts
-
-# Install Foundry
-curl -L https://foundry.paradigm.xyz | bash
-foundryup
-
-# Install dependencies
-forge install
-
-# Build
-forge build
-
-# Test
-forge test -vvv
-
-# Deploy to BSC Testnet
-forge script script/Deploy.s.sol --rpc-url $BSC_TESTNET_RPC --broadcast
-```
-
-## Network
-
-**Target: BSC (Binance Smart Chain)**
-- Testnet Chain ID: 97
-- Collateral: USDT (18 decimals)
-- Testnet USDT: `0x337610d27c682E347C9cD60BD4b3b107C9d34dDd`
-
-## Documentation
-
-- [Architecture](contracts/docs/ARCHITECTURE.md) - System design and data flows
-- [Deployment](contracts/docs/DEPLOYMENT.md) - How to deploy
-- [API Reference](contracts/docs/API.md) - Contract interfaces
 
 ## Key Features
 
-| Feature | Description |
-|---------|-------------|
-| **Leverage** | Up to 10x on any prediction market |
-| **Zero-Sum Funding** | Balanced between traders, LPs not exposed |
-| **vAMM Slippage** | Fair execution prices based on size |
-| **EMA Smoothing** | Manipulation-resistant pricing |
-| **Instant Liquidations** | Protect LP capital |
-| **LP Yield** | Earn from trading fees, borrow fees, liquidations |
-| **BSC Native** | Low fees, fast finality, USDT collateral |
+### Price Smoothing (PriceEngineV2)
+- **Volatility Dampening:** `w_vol = 1/(1+σ)` — stickier when volatile
+- **Time-Weighted:** `w_time = √(τ/τ_max)` — locks near expiry
+- **Anti-manipulation:** Input validation, tick limits, liquidity checks
 
-## Risk Parameters (Example)
+### LP Pool Integration (RouterV5)
+- Automatic capital allocation tracking
+- Fee routing (borrow, trading, liquidations)
+- Real utilization metrics
 
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| Initial Margin | 10% | Required to open position |
-| Maintenance Margin | 5% | Required to keep position |
-| Max Leverage | 10x | Per-market cap |
-| Base Borrow Rate | 5% APR | When utilization is low |
-| Max Borrow Rate | 50% APR | When utilization is high |
-| Liquidation Penalty | 5% | Distributed to liquidator/protocol/LPs |
+### Dynamic Borrow Rates (BorrowFeeEngineV2)
+- 5 risk multipliers: Utilization, Imbalance, Volatility, Time-to-Resolution, Concentration
+- EMA smoothing with rate caps
+- Base rate: 0.02% per hour
 
-## Roadmap
+## Development
 
-- [x] Core smart contracts
-- [x] Unit tests
-- [x] Integration tests
-- [x] Documentation
-- [ ] Oracle adapters (Polymarket, UMA)
-- [ ] Deploy scripts
-- [ ] Testnet deployment
-- [ ] Frontend
-- [ ] Keeper bots
-- [ ] Audit
-- [ ] Mainnet launch
+```bash
+# Frontend
+cd frontend && npm install && npm run dev
 
-## Security
+# Contracts (requires Foundry)
+cd contracts && forge build
 
-- All contracts include reentrancy guards
-- Price staleness checks prevent stale oracle attacks
-- OI caps limit maximum exposure
-- Emergency pause functionality
-- Withdrawal delays prevent LP bank runs
+# Keeper
+cd keeper && npm install && npx ts-node polymarket-keeper-v3.ts
+```
 
-**Note:** These contracts have not been audited. Use at your own risk.
+## Links
 
-## Contributing
-
-We welcome contributions! Please see our [contributing guidelines](CONTRIBUTING.md).
-
-## License
-
-MIT
+- Frontend: http://165.245.186.254:3001
+- Network: BSC Testnet (Chain ID 97)
+- Status: Pre-seed / Active Development
 
 ---
 
-Built by the LEVER team. Follow us on [Twitter](https://twitter.com/leverprotocol).
+*Last updated: 2026-02-06*
