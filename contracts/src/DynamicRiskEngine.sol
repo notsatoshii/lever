@@ -331,6 +331,101 @@ contract DynamicRiskEngine {
                      insuranceHealth < (50 * PRECISION / 100);
     }
     
+    // ============ IRiskEngine Interface Functions ============
+    
+    /**
+     * @notice Get utilization data for a market (IRiskEngine interface)
+     */
+    function getUtilization(uint256 marketId) external view returns (
+        uint256 totalOI,
+        uint256 totalLPCapital,
+        uint256 utilization,
+        uint256 currentBorrowRate
+    ) {
+        IPositionLedger.Market memory market = ledger.getMarket(marketId);
+        totalOI = market.totalLongOI + market.totalShortOI;
+        totalLPCapital = address(lpPool) != address(0) ? lpPool.totalAssets() : 0;
+        utilization = getGlobalUtilization();
+        currentBorrowRate = _calculateBorrowRate(marketId);
+    }
+    
+    /**
+     * @notice Get required collateral for a position size (IRiskEngine interface)
+     */
+    function getRequiredCollateral(
+        uint256 marketId,
+        uint256 size,
+        uint256 price
+    ) external view returns (uint256 initial, uint256 maintenance) {
+        EffectiveParams memory params = getEffectiveParams(marketId);
+        uint256 notional = (size * price) / PRECISION;
+        initial = (notional * params.initialMarginBps) / BASIS_POINTS;
+        maintenance = (notional * params.maintenanceMarginBps) / BASIS_POINTS;
+    }
+    
+    /**
+     * @notice Get pending borrow fee for a position (IRiskEngine interface)
+     */
+    function getPendingBorrowFee(
+        address trader,
+        uint256 marketId
+    ) external view returns (uint256) {
+        IPositionLedger.Position memory pos = ledger.getPosition(trader, marketId);
+        if (pos.size == 0) return 0;
+        
+        // Calculate accrued index since position opened
+        uint256 currentIndex = borrowIndex[marketId];
+        if (pos.lastBorrowIndex == 0 || pos.lastBorrowIndex >= currentIndex) return 0;
+        
+        uint256 absSize = pos.size >= 0 ? uint256(pos.size) : uint256(-pos.size);
+        uint256 notional = (absSize * pos.entryPrice) / PRECISION;
+        
+        // Fee = notional * (currentIndex / positionIndex - 1)
+        uint256 indexRatio = (currentIndex * PRECISION) / pos.lastBorrowIndex;
+        return (notional * (indexRatio - PRECISION)) / PRECISION;
+    }
+    
+    /**
+     * @notice Get liquidation penalty amount (IRiskEngine interface)
+     */
+    function getLiquidationPenalty(
+        uint256 marketId,
+        uint256 collateral
+    ) external view returns (uint256) {
+        BaseRiskParams storage base = baseParams[marketId];
+        return (collateral * base.liquidationPenaltyBps) / BASIS_POINTS;
+    }
+    
+    /**
+     * @notice Get max position size for given collateral (IRiskEngine interface)
+     */
+    function getMaxPositionSize(
+        uint256 marketId,
+        uint256 collateral,
+        uint256 price
+    ) external view returns (uint256) {
+        EffectiveParams memory params = getEffectiveParams(marketId);
+        if (price == 0) return 0;
+        // maxSize = collateral * maxLeverage * PRECISION / price
+        return (collateral * params.maxLeverage * PRECISION) / price;
+    }
+    
+    /**
+     * @notice Accrue interest for a market (IRiskEngine interface)
+     */
+    function accrueInterest(uint256 marketId) external {
+        uint256 lastUpdate = lastBorrowUpdate[marketId];
+        if (lastUpdate == 0 || block.timestamp <= lastUpdate) return;
+        
+        uint256 elapsed = block.timestamp - lastUpdate;
+        uint256 rate = _calculateBorrowRate(marketId);
+        
+        // Index growth = elapsed * rate / SECONDS_PER_YEAR
+        uint256 growth = (elapsed * rate) / SECONDS_PER_YEAR;
+        borrowIndex[marketId] = borrowIndex[marketId] + (borrowIndex[marketId] * growth) / PRECISION;
+        lastBorrowUpdate[marketId] = block.timestamp;
+    }
+    
     // ============ Internal Functions ============
     
     function _calculateEffectiveMaxLeverage(uint256 marketId) internal view returns (uint256) {
