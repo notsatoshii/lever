@@ -4,9 +4,12 @@ import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionRe
 import { formatUnits } from 'viem';
 import { CONTRACTS, LEDGER_ABI, PRICE_ENGINE_ABI, ROUTER_ABI } from '@/config/contracts';
 
-const MARKET_ID = 0n;
+interface PositionPanelProps {
+  marketId: number;
+}
 
-export function PositionPanel() {
+export function PositionPanel({ marketId }: PositionPanelProps) {
+  const MARKET_ID = BigInt(marketId);
   const { address } = useAccount();
   const chainId = 97;
   const contracts = CONTRACTS[chainId];

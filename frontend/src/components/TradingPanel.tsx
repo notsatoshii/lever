@@ -5,9 +5,12 @@ import { useAccount, useWriteContract, useReadContract, useWaitForTransactionRec
 import { parseUnits, formatUnits } from 'viem';
 import { CONTRACTS, USDT_ABI, ROUTER_ABI } from '@/config/contracts';
 
-const MARKET_ID = 0n;
+interface TradingPanelProps {
+  marketId: number;
+}
 
-export function TradingPanel() {
+export function TradingPanel({ marketId }: TradingPanelProps) {
+  const MARKET_ID = BigInt(marketId);
   const { address } = useAccount();
   const chainId = 97;
   const contracts = CONTRACTS[chainId];
