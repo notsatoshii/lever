@@ -8,6 +8,7 @@ import { bscTestnet } from 'viem/chains';
 import { CONTRACTS, PRICE_ENGINE_ABI, PRICE_ENGINE_V2_ABI, LEDGER_ABI, FUNDING_ENGINE_ABI } from '@/config/contracts';
 import { TradingPanel } from '@/components/TradingPanel';
 import { PriceChart } from '@/components/PriceChart';
+import { PositionPanel } from '@/components/PositionPanel';
 import { getMarketById, getMarketBySlug, MarketConfig } from '@/config/markets';
 
 const client = createPublicClient({
@@ -266,12 +267,15 @@ export default function MarketPage() {
         </div>
 
         {/* Trading Panel - Full width on mobile, 3 cols on desktop */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 space-y-4">
           <TradingPanel 
             marketId={marketId} 
             initialSide={initialSide || undefined}
             polymarketPrice={displayPrice}
           />
+          
+          {/* Position Panel - Shows current position with close button */}
+          <PositionPanel marketId={marketId} />
         </div>
       </div>
     </div>
