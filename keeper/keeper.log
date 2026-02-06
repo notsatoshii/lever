@@ -1,27 +1,68 @@
-
-> lever-keeper@1.0.0 start
-> npx tsx price-keeper.ts
-
-npm warn exec The following package was not found and will be installed: tsx@4.21.0
-🔑 Key length: 66 chars
+🔮 Polymarket → LEVER Price Keeper
 🔑 Keeper address: 0x7928251fE2D52CBECDCe0Fe9551aD9BF798347bc
-📊 Updating 3 markets every 60s
+📊 Syncing 12 markets every 30s
 
-[2026-02-06T10:44:22.361Z] Updating prices...
-  Market 1 (MicroStrategy BTC Sale): 12.08%
-    ❌ Market 1 error: The contract function "updatePrice" reverted with the following signature:
-0xd3c4a2f2
-
-Unable to dec
-  Market 2 (Trump Deportations): 35.32%
-    ❌ Market 2 error: The contract function "updatePrice" reverted with the following signature:
-0xd3c4a2f2
-
-Unable to dec
-  Market 3 (GTA 6 $100+): 8.08%
-    ❌ Market 3 error: The contract function "updatePrice" reverted with the following signature:
-0xd3c4a2f2
-
-Unable to dec
+[2026-02-06T13:49:24.107Z] Syncing prices from Polymarket...
+  ⚠️  Market 1 (MicroStrategy BTC Sale): No data from Polymarket
+  📈 Market 2 (Trump Deportations 250-500k): 89.85%
+     ✅ TX: 0x68d378611ebea631... Block: 88788917
+  📈 Market 3 (GTA 6 $100+): 1.00%
+     ✅ TX: 0x84a0d05c261d5b6d... Block: 88788930
+  📈 Market 4 (US Revenue <$100b): 84.00%
+     ✅ TX: 0x3203d37aad808109... Block: 88788943
+  📈 Market 5 (Tariffs >$250b): 1.55%
+     ✅ TX: 0xf3acf395349fdd03... Block: 88788960
+  📈 Market 6 (US Revenue $500b-$1t): 1.00%
+     ✅ TX: 0xda30df2faec58816... Block: 88788970
+  📈 Market 7 (US Revenue $100b-$200b): 6.35%
+     ✅ TX: 0x650e6f6651a2f64e... Block: 88788984
+  📈 Market 8 (Trump Deport <250k): 5.15%
+     ✅ TX: 0x09010d52aed66433... Block: 88788998
+  📈 Market 9 (US Revenue <$100b (2)): 0.0% → 10.0% (target: 84.0%)
+     ✅ TX: 0x802ba03786675a88... Block: 88789011
+  📈 Market 10 (Tariffs $250b+ (2)): 1.55%
+     ✅ TX: 0x4598e680751a1d5f... Block: 88789032
+  📈 Market 11 (Revenue $500b-$1t (2)): 1.00%
+     ✅ TX: 0x8893af32c0a55eb8... Block: 88789037
+  📈 Market 12 (Trump Deport <250k (2)): 5.15%
+     ✅ TX: 0xc31a3ef6d50ab0f9... Block: 88789051
 
 ⏰ Keeper running. Press Ctrl+C to stop.
+[2026-02-06T13:51:00.364Z] Syncing prices from Polymarket...
+  ⚠️  Market 1 (MicroStrategy BTC Sale): No data from Polymarket
+  📈 Market 2 (Trump Deportations 250-500k): 89.90%
+     ✅ TX: 0xb00771dc51ed8047... Block: 88789130
+  📈 Market 3 (GTA 6 $100+): 1.00%
+     ✅ TX: 0x9d53d0755bee1202... Block: 88789144
+  📈 Market 4 (US Revenue <$100b): 83.55%
+     ✅ TX: 0x8742ed3d7c4e824b... Block: 88789158
+  📈 Market 5 (Tariffs >$250b): 1.55%
+     ✅ TX: 0x0bc83b155b16d4a6... Block: 88789176
+  📈 Market 6 (US Revenue $500b-$1t): 1.00%
+     ✅ TX: 0x4817f52e55a9d260... Block: 88789184
+[2026-02-06T13:51:30.366Z] Syncing prices from Polymarket...
+  ⚠️  Market 1 (MicroStrategy BTC Sale): No data from Polymarket
+  📈 Market 2 (Trump Deportations 250-500k): 89.90%
+  📈 Market 7 (US Revenue $100b-$200b): 6.35%
+  ❌ Market 7: Missing or invalid parameters.
+Double check you have provided the correct parame
+  📈 Market 8 (Trump Deport <250k): 5.15%
+     ✅ TX: 0xb9455238cdc25321... Block: 88789198
+     ✅ TX: 0xa25211f1eed22927... Block: 88789200
+  📈 Market 9 (US Revenue <$100b (2)): 10.0% → 20.0% (target: 83.5%)
+  📈 Market 3 (GTA 6 $100+): 1.00%
+  ❌ Market 9: The contract function "updatePrice" reverted with the following signature:
+0xd3c
+  📈 Market 10 (Tariffs $250b+ (2)): 1.55%
+  ❌ Market 10: Missing or invalid parameters.
+Double check you have provided the correct parame
+  📈 Market 11 (Revenue $500b-$1t (2)): 1.00%
+     ✅ TX: 0x22d4d312fb92d62d... Block: 88789211
+     ✅ TX: 0x4f15486737c2d6a9... Block: 88789212
+  📈 Market 4 (US Revenue <$100b): 83.55%
+  📈 Market 12 (Trump Deport <250k (2)): 5.15%
+  ❌ Market 12: Missing or invalid parameters.
+Double check you have provided the correct parame
+
+     ✅ TX: 0x527c92a37c64cf4c... Block: 88789224
+  📈 Market 5 (Tariffs >$250b): 1.55%

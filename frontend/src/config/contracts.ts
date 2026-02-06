@@ -4,7 +4,8 @@ export const CONTRACTS = {
   97: {
     USDT: '0x0Fbe7F2C870636b1f3cFc6AD9d5767eb26A48F58',
     LEDGER: '0x6738828760E8d2Eb8cD892c5a15Ad5d994d7995c',
-    PRICE_ENGINE: '0x74F964E2bda482Ae78834fF4F4FBC892E1b6Aa33',
+    PRICE_ENGINE: '0x74F964E2bda482Ae78834fF4F4FBC892E1b6Aa33',       // Old - for execution price
+    PRICE_ENGINE_V2: '0x32Fe76322105f7990aACF5C6E2E103Aba68d0CbC',   // New - for mark price (PI)
     FUNDING_ENGINE: '0xa6Ec543C82c564F9Cdb9a7e7682C68A43D1af802',
     RISK_ENGINE: '0x833D02521a41f175c389ec2A8c86F22E3de524DB',
     ROUTER: '0x346D9eC78F8437c2aa32375584B959ccCDc843E1', // RouterV3 with complete fees
@@ -90,6 +91,40 @@ export const PRICE_ENGINE_ABI = [
 export const FUNDING_ENGINE_ABI = [
   { name: 'getCurrentFundingRate', type: 'function', stateMutability: 'view', inputs: [{ name: 'marketId', type: 'uint256' }], outputs: [{ type: 'int256' }] },
   { name: 'getPendingFunding', type: 'function', stateMutability: 'view', inputs: [{ name: 'trader', type: 'address' }, { name: 'marketId', type: 'uint256' }], outputs: [{ type: 'int256' }] },
+] as const;
+
+// PriceEngineV2 - Smoothed Mark Price (PI)
+export const PRICE_ENGINE_V2_ABI = [
+  { name: 'getMarkPrice', type: 'function', stateMutability: 'view', inputs: [{ name: 'marketId', type: 'uint256' }], outputs: [{ type: 'uint256' }] },
+  { name: 'getRawPrice', type: 'function', stateMutability: 'view', inputs: [{ name: 'marketId', type: 'uint256' }], outputs: [{ type: 'uint256' }] },
+  { 
+    name: 'getPriceState', 
+    type: 'function', 
+    stateMutability: 'view', 
+    inputs: [{ name: 'marketId', type: 'uint256' }], 
+    outputs: [
+      { name: 'rawPrice', type: 'uint256' },
+      { name: 'smoothedPrice', type: 'uint256' },
+      { name: 'lastUpdate', type: 'uint256' },
+      { name: 'volatility', type: 'uint256' },
+    ] 
+  },
+  { 
+    name: 'getMarketConfig', 
+    type: 'function', 
+    stateMutability: 'view', 
+    inputs: [{ name: 'marketId', type: 'uint256' }], 
+    outputs: [
+      { name: 'expiryTimestamp', type: 'uint256' },
+      { name: 'maxSpread', type: 'uint256' },
+      { name: 'maxTickMovement', type: 'uint256' },
+      { name: 'minLiquidityDepth', type: 'uint256' },
+      { name: 'alpha', type: 'uint256' },
+      { name: 'active', type: 'bool' },
+    ] 
+  },
+  { name: 'getTimeToExpiry', type: 'function', stateMutability: 'view', inputs: [{ name: 'marketId', type: 'uint256' }], outputs: [{ type: 'uint256' }] },
+  { name: 'isExpired', type: 'function', stateMutability: 'view', inputs: [{ name: 'marketId', type: 'uint256' }], outputs: [{ type: 'bool' }] },
 ] as const;
 
 export const LP_POOL_ABI = [

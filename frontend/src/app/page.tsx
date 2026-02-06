@@ -17,7 +17,7 @@ interface MarketConfig {
   active: boolean;
 }
 
-// Inline markets data to fix loading issue
+// Inline markets data - all 12 markets
 const LEVER_MARKETS: MarketConfig[] = [
   {
     id: 1,
@@ -44,6 +44,87 @@ const LEVER_MARKETS: MarketConfig[] = [
     slug: 'will-gta-6-cost-100',
     category: 'General',
     icon: '🎮',
+    active: true,
+  },
+  {
+    id: 4,
+    name: 'US Revenue <$100b',
+    question: 'Will the US collect less than $100b in revenue in 2025?',
+    slug: 'will-the-us-collect-less-than-100b-in-revenue-in-2025',
+    category: 'Finance',
+    icon: '💰',
+    active: true,
+  },
+  {
+    id: 5,
+    name: 'Tariffs >$250b',
+    question: 'Will tariffs generate $250b+ in 2025?',
+    slug: 'will-tariffs-generate-250b-in-2025',
+    category: 'Finance',
+    icon: '📊',
+    active: true,
+  },
+  {
+    id: 6,
+    name: 'US Revenue $500b-$1t',
+    question: 'Will the US collect between $500b and $1t in revenue in 2025?',
+    slug: 'will-the-us-collect-between-500b-and-1t-in-revenue-in-2025',
+    category: 'Finance',
+    icon: '💵',
+    active: true,
+  },
+  {
+    id: 7,
+    name: 'US Revenue $100b-$200b',
+    question: 'Will the US collect between $100b and $200b in revenue in 2025?',
+    slug: 'will-the-us-collect-between-100b-and-200b-in-revenue-in-2025',
+    category: 'Finance',
+    icon: '💰',
+    active: true,
+  },
+  {
+    id: 8,
+    name: 'Trump Deport <250k',
+    question: 'Will Trump deport less than 250,000 people?',
+    slug: 'will-trump-deport-less-than-250000',
+    category: 'Politics',
+    icon: '🇺🇸',
+    active: true,
+  },
+  {
+    id: 9,
+    name: 'US Revenue <$100b (2)',
+    question: 'Will the US collect less than $100b in tariff revenue?',
+    slug: 'will-the-us-collect-less-than-100b-in-revenue-in-2025',
+    category: 'Finance',
+    icon: '💰',
+    active: true,
+  },
+  {
+    id: 10,
+    name: 'Tariffs $250b+',
+    question: 'Will tariffs generate over $250 billion?',
+    slug: 'will-tariffs-generate-250b-in-2025',
+    category: 'Finance',
+    icon: '📊',
+    active: true,
+  },
+  {
+    id: 11,
+    name: 'Revenue Band $500b-$1t',
+    question: 'Will US revenue be in the $500b-$1t range?',
+    slug: 'will-the-us-collect-between-500b-and-1t-in-revenue-in-2025',
+    category: 'Finance',
+    icon: '💵',
+    active: true,
+  },
+  {
+    id: 12,
+    name: 'Trump Deport Under 250k',
+    question: 'Will deportations be under 250,000?',
+    slug: 'will-trump-deport-less-than-250000',
+    category: 'Politics',
+    icon: '🇺🇸',
     active: true,
   },
 ];

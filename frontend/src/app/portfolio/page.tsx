@@ -5,12 +5,223 @@ import { useAccount } from 'wagmi';
 import Link from 'next/link';
 import { createPublicClient, http, formatUnits } from 'viem';
 import { bscTestnet } from 'viem/chains';
-import { CONTRACTS, LEDGER_ABI, LP_POOL_ABI, PRICE_ENGINE_ABI } from '@/config/contracts';
+import { CONTRACTS, LEDGER_ABI, LP_POOL_ABI, PRICE_ENGINE_ABI, ROUTER_ABI } from '@/config/contracts';
+import { parseAbiItem } from 'viem';
 
 const client = createPublicClient({
   chain: bscTestnet,
   transport: http('https://data-seed-prebsc-1-s1.binance.org:8545'),
 });
+
+// Event ABIs for trade history
+const POSITION_OPENED_ABI = parseAbiItem('event PositionOpened(address indexed trader, uint256 indexed marketId, int256 size, uint256 executionPrice, uint256 collateral, uint256 tradingFee)');
+const POSITION_CLOSED_ABI = parseAbiItem('event PositionClosed(address indexed trader, uint256 indexed marketId, int256 size, uint256 executionPrice, int256 realizedPnL, uint256 tradingFee)');
+
+interface TradeEvent {
+  type: 'open' | 'close';
+  marketId: number;
+  size: bigint;
+  price: bigint;
+  collateral?: bigint;
+  pnl?: bigint;
+  fee: bigint;
+  timestamp: number;
+  txHash: string;
+  blockNumber: bigint;
+}
+
+// Trade History Component
+function TradeHistoryTab({ address, contracts }: { address: string | undefined; contracts: typeof CONTRACTS[97] }) {
+  const [trades, setTrades] = useState<TradeEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchTradeHistory() {
+      if (!address || !contracts.ROUTER) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Fetch last 1000 blocks of events (~50 mins on BSC)
+        const currentBlock = await client.getBlockNumber();
+        const fromBlock = currentBlock - 1000n;
+
+        // Fetch PositionOpened events
+        const openedLogs = await client.getLogs({
+          address: contracts.ROUTER as `0x${string}`,
+          event: POSITION_OPENED_ABI,
+          args: { trader: address as `0x${string}` },
+          fromBlock,
+          toBlock: 'latest',
+        });
+
+        // Fetch PositionClosed events  
+        const closedLogs = await client.getLogs({
+          address: contracts.ROUTER as `0x${string}`,
+          event: POSITION_CLOSED_ABI,
+          args: { trader: address as `0x${string}` },
+          fromBlock,
+          toBlock: 'latest',
+        });
+
+        // Get block timestamps
+        const allBlocks = [...new Set([...openedLogs, ...closedLogs].map(l => l.blockNumber))];
+        const blockTimestamps: Record<string, number> = {};
+        
+        await Promise.all(
+          allBlocks.map(async (blockNum) => {
+            try {
+              const block = await client.getBlock({ blockNumber: blockNum });
+              blockTimestamps[blockNum.toString()] = Number(block.timestamp);
+            } catch {
+              blockTimestamps[blockNum.toString()] = 0;
+            }
+          })
+        );
+
+        // Parse events
+        const openTrades: TradeEvent[] = openedLogs.map((log) => ({
+          type: 'open' as const,
+          marketId: Number(log.args.marketId),
+          size: log.args.size as bigint,
+          price: log.args.executionPrice as bigint,
+          collateral: log.args.collateral as bigint,
+          fee: log.args.tradingFee as bigint,
+          timestamp: blockTimestamps[log.blockNumber.toString()] || 0,
+          txHash: log.transactionHash,
+          blockNumber: log.blockNumber,
+        }));
+
+        const closeTrades: TradeEvent[] = closedLogs.map((log) => ({
+          type: 'close' as const,
+          marketId: Number(log.args.marketId),
+          size: log.args.size as bigint,
+          price: log.args.executionPrice as bigint,
+          pnl: log.args.realizedPnL as bigint,
+          fee: log.args.tradingFee as bigint,
+          timestamp: blockTimestamps[log.blockNumber.toString()] || 0,
+          txHash: log.transactionHash,
+          blockNumber: log.blockNumber,
+        }));
+
+        // Combine and sort by block (newest first)
+        const allTrades = [...openTrades, ...closeTrades].sort(
+          (a, b) => Number(b.blockNumber) - Number(a.blockNumber)
+        );
+
+        setTrades(allTrades);
+      } catch (e) {
+        console.error('Failed to fetch trade history:', e);
+      }
+      setIsLoading(false);
+    }
+
+    fetchTradeHistory();
+  }, [address, contracts]);
+
+  if (isLoading) {
+    return (
+      <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 text-center">
+        <p className="text-gray-400">Loading trade history...</p>
+      </div>
+    );
+  }
+
+  if (trades.length === 0) {
+    return (
+      <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 text-center">
+        <p className="text-gray-400 mb-2">No recent trades</p>
+        <p className="text-gray-500 text-sm">
+          Your trade history from the last ~1000 blocks will appear here
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[800px]">
+          <thead className="bg-gray-700/50 text-gray-400 text-sm">
+            <tr>
+              <th className="text-left p-4">Time</th>
+              <th className="text-left p-4">Type</th>
+              <th className="text-left p-4">Market</th>
+              <th className="text-right p-4">Size</th>
+              <th className="text-right p-4">Price</th>
+              <th className="text-right p-4">PnL</th>
+              <th className="text-right p-4">Fee</th>
+              <th className="text-right p-4">Tx</th>
+            </tr>
+          </thead>
+          <tbody>
+            {trades.map((trade, idx) => {
+              const isLong = trade.size > 0n;
+              const absSize = isLong ? trade.size : -trade.size;
+              const pnlNum = trade.pnl ? Number(formatUnits(trade.pnl, 18)) : null;
+              const timeStr = trade.timestamp 
+                ? new Date(trade.timestamp * 1000).toLocaleString()
+                : 'Unknown';
+
+              return (
+                <tr key={`${trade.txHash}-${idx}`} className="border-t border-gray-700">
+                  <td className="p-4 text-gray-400 text-sm whitespace-nowrap">
+                    {timeStr}
+                  </td>
+                  <td className="p-4">
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                      trade.type === 'open'
+                        ? 'bg-blue-500/20 text-blue-400'
+                        : 'bg-purple-500/20 text-purple-400'
+                    }`}>
+                      {trade.type === 'open' ? 'OPEN' : 'CLOSE'}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <span className="flex items-center gap-2">
+                      <span className={`px-1.5 py-0.5 rounded text-xs ${
+                        isLong ? 'bg-lever-green/20 text-lever-green' : 'bg-lever-red/20 text-lever-red'
+                      }`}>
+                        {isLong ? 'L' : 'S'}
+                      </span>
+                      <span>Market #{trade.marketId}</span>
+                    </span>
+                  </td>
+                  <td className="p-4 text-right whitespace-nowrap">
+                    {Number(formatUnits(absSize, 18)).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="p-4 text-right whitespace-nowrap">
+                    {(Number(formatUnits(trade.price, 18)) * 100).toFixed(2)}¢
+                  </td>
+                  <td className={`p-4 text-right whitespace-nowrap font-medium ${
+                    pnlNum === null ? 'text-gray-500' :
+                    pnlNum >= 0 ? 'text-lever-green' : 'text-lever-red'
+                  }`}>
+                    {pnlNum === null ? '—' : `${pnlNum >= 0 ? '+' : ''}${pnlNum.toFixed(2)}`}
+                  </td>
+                  <td className="p-4 text-right text-gray-400 whitespace-nowrap">
+                    {Number(formatUnits(trade.fee, 18)).toFixed(4)}
+                  </td>
+                  <td className="p-4 text-right">
+                    <a
+                      href={`https://testnet.bscscan.com/tx/${trade.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline text-sm"
+                    >
+                      View ↗
+                    </a>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 interface Position {
   marketId: number;
@@ -325,12 +536,7 @@ export default function PortfolioPage() {
 
       {/* History Tab */}
       {activeTab === 'history' && (
-        <div className="bg-gray-800 rounded-xl border border-gray-700 p-8 text-center">
-          <p className="text-gray-400">Trade history coming soon</p>
-          <p className="text-gray-500 text-sm mt-2">
-            Historical trades will be indexed from on-chain events
-          </p>
-        </div>
+        <TradeHistoryTab address={address} contracts={contracts} />
       )}
     </div>
   );

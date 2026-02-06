@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createPublicClient, http, formatUnits } from 'viem';
 import { bscTestnet } from 'viem/chains';
-import { CONTRACTS, PRICE_ENGINE_ABI, LEDGER_ABI, FUNDING_ENGINE_ABI } from '@/config/contracts';
+import { CONTRACTS, PRICE_ENGINE_ABI, PRICE_ENGINE_V2_ABI, LEDGER_ABI, FUNDING_ENGINE_ABI } from '@/config/contracts';
 import { TradingPanel } from '@/components/TradingPanel';
 import { PriceChart } from '@/components/PriceChart';
 import { getMarketById, getMarketBySlug, MarketConfig } from '@/config/markets';
@@ -45,7 +45,9 @@ export default function MarketPage() {
   const marketConfig = getMarketById(marketId) || getMarketBySlug(polymarketSlug || '');
   
   // On-chain data
-  const [price, setPrice] = useState<bigint | null>(null);
+  const [livePrice, setLivePrice] = useState<bigint | null>(null);  // From old PriceEngine (execution)
+  const [markPrice, setMarkPrice] = useState<bigint | null>(null);  // From PriceEngineV2 (PI - smoothed)
+  const [marketExpiry, setMarketExpiry] = useState<bigint | null>(null);
   const [marketData, setMarketData] = useState<any>(null);
   const [fundingRate, setFundingRate] = useState<bigint | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,7 +56,8 @@ export default function MarketPage() {
   useEffect(() => {
     async function fetchOnChainData() {
       try {
-        const [priceData, mktData, funding] = await Promise.all([
+        const [livePriceData, mktData, funding] = await Promise.all([
+          // LIVE price from old PriceEngine (used for execution/chart)
           client.readContract({
             address: contracts.PRICE_ENGINE as `0x${string}`,
             abi: PRICE_ENGINE_ABI,
@@ -74,9 +77,36 @@ export default function MarketPage() {
             args: [BigInt(marketId)],
           }),
         ]);
-        setPrice(priceData as bigint);
+        setLivePrice(livePriceData as bigint);
         setMarketData(mktData);
         setFundingRate(funding as bigint);
+        
+        // Fetch Mark Price (PI) and expiry from PriceEngineV2
+        if (contracts.PRICE_ENGINE_V2) {
+          try {
+            const [markPriceData, configData] = await Promise.all([
+              client.readContract({
+                address: contracts.PRICE_ENGINE_V2 as `0x${string}`,
+                abi: PRICE_ENGINE_V2_ABI,
+                functionName: 'getMarkPrice',
+                args: [BigInt(marketId)],
+              }),
+              client.readContract({
+                address: contracts.PRICE_ENGINE_V2 as `0x${string}`,
+                abi: PRICE_ENGINE_V2_ABI,
+                functionName: 'getMarketConfig',
+                args: [BigInt(marketId)],
+              }),
+            ]);
+            setMarkPrice(markPriceData as bigint);
+            // configData[0] is expiryTimestamp
+            const config = configData as readonly [bigint, bigint, bigint, bigint, bigint, boolean];
+            setMarketExpiry(config[0]);
+          } catch (e) {
+            // PriceEngineV2 might not have this market configured yet
+            setMarkPrice(livePriceData as bigint); // Fallback to live price
+          }
+        }
       } catch (e) {
         console.error('Error fetching on-chain data:', e);
       }
@@ -87,9 +117,25 @@ export default function MarketPage() {
     return () => clearInterval(interval);
   }, [marketId, contracts]);
 
-  // Use on-chain price from PriceEngine
-  const displayPrice = price ? Number(formatUnits(price, 18)) : 0.5;
-  const displayNoPrice = price ? 1 - Number(formatUnits(price, 18)) : 0.5;
+  // Dual prices: LIVE (for chart/execution) and MARK (for PnL/liquidations)
+  const livePriceNum = livePrice ? Number(formatUnits(livePrice, 18)) : 0.5;
+  const markPriceNum = markPrice ? Number(formatUnits(markPrice, 18)) : livePriceNum;
+  const displayPrice = livePriceNum;  // Chart shows LIVE
+  const displayNoPrice = 1 - livePriceNum;
+  
+  // Format expiry
+  const formatExpiry = (timestamp: bigint | null) => {
+    if (!timestamp || timestamp === 0n) return null;
+    const date = new Date(Number(timestamp) * 1000);
+    const now = new Date();
+    const diffMs = date.getTime() - now.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return {
+      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      daysLeft: diffDays,
+    };
+  };
+  const expiry = formatExpiry(marketExpiry);
 
   const formatPrice = (p: number | null) => {
     if (p === null) return '—';
@@ -131,19 +177,38 @@ export default function MarketPage() {
           <h1 className="text-base sm:text-lg font-semibold">{marketQuestion}</h1>
           <p className="text-xs text-gray-500 mt-1">
             Category: {marketCategory} • Market ID: {marketId}
+            {expiry && (
+              <span className="ml-2">
+                • Expires: {expiry.date} ({expiry.daysLeft} days)
+              </span>
+            )}
           </p>
         </div>
       </div>
 
-      {/* Stats Bar - Responsive Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6 pb-4 border-b border-gray-800">
+      {/* Dual Price Display */}
+      <div className="grid grid-cols-2 gap-4 mb-4 p-4 bg-gray-800/50 rounded-xl border border-gray-700">
         <div>
-          <span className="text-gray-500 text-xs sm:text-sm">Yes Price</span>
-          <p className="text-lg sm:text-xl font-bold text-lever-green">{formatPrice(displayPrice)}</p>
+          <span className="text-gray-500 text-xs">LIVE (Polymarket)</span>
+          <p className="text-2xl font-bold text-lever-green">{(livePriceNum * 100).toFixed(2)}%</p>
+          <span className="text-xs text-gray-600">Execution price</span>
         </div>
         <div>
-          <span className="text-gray-500 text-xs sm:text-sm">No Price</span>
-          <p className="text-lg sm:text-xl font-bold text-lever-red">{formatPrice(displayNoPrice)}</p>
+          <span className="text-gray-500 text-xs">MARK PRICE (PI)</span>
+          <p className="text-2xl font-bold text-blue-400">{(markPriceNum * 100).toFixed(2)}%</p>
+          <span className="text-xs text-gray-600">Used for PnL & liquidations</span>
+        </div>
+      </div>
+      
+      {/* Stats Bar - Responsive Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 pb-4 border-b border-gray-800">
+        <div>
+          <span className="text-gray-500 text-xs sm:text-sm">Yes / No</span>
+          <p className="text-sm sm:text-lg font-semibold">
+            <span className="text-lever-green">{formatPrice(displayPrice)}</span>
+            {' / '}
+            <span className="text-lever-red">{formatPrice(displayNoPrice)}</span>
+          </p>
         </div>
         <div>
           <span className="text-gray-500 text-xs sm:text-sm">OI (L/S)</span>

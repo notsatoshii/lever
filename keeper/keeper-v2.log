@@ -1,0 +1,31 @@
+
+╔════════════════════════════════════════════════════════════╗
+║     🔮 LEVER Price Keeper V2 - Anti-Manipulation Shield    ║
+╚════════════════════════════════════════════════════════════╝
+
+  🔑 Keeper:      0x7928251fE2D52CBECDCe0Fe9551aD9BF798347bc
+  📍 PriceEngine: 0x32Fe76322105f7990aACF5C6E2E103Aba68d0CbC
+  📊 Markets:     5
+  ⏱️  Interval:    30s
+
+  Architecture: Polymarket → Keeper (validate) → PriceEngineV2 (smooth) → Mark Price
+
+[2026-02-06 14:31:51] ────────────────────────────────────────
+  ⚠️  Market 1 (MicroStrategy BTC Sale): No data
+  📈 Market 2 (Trump Deportations 250-500k):
+     Price: 89.95% (ΔNEW%) | Spread: 300bp | Liq: $3,757.384 | σ: 0.0%
+  📈 Market 3 (GTA 6 $100+):
+     Price: 1.00% (ΔNEW%) | Spread: 100bp | Liq: $84,379.8 | σ: 0.0%
+  📈 Market 4 (US Revenue <$100b):
+     Price: 83.50% (ΔNEW%) | Spread: 200bp | Liq: $27,993.48 | σ: 0.0%
+  📈 Market 5 (Tariffs >$250b):
+     Price: 1.55% (ΔNEW%) | Spread: 200bp | Liq: $16,067.877 | σ: 0.0%
+  📤 Submitting batch update for 4 markets...
+  ✅ Batch TX: 0xa04f44afea7de917f2... Block: 88794581
+  📊 Stats: 4 updates | 0 rejected
+
+[2026-02-06 14:31:58] ──── INTEREST ACCRUAL ────
+  📈 Market 1: Index 1.0000040844621776 → 1.0000255691231168 (+0.0021%)
+  📈 Market 2: Index 1.0000199555073985 → 1.0000259421581286 (+0.0006%)
+  📈 Market 3: Index 1 → 1.0000253424657535 (+0.0025%)
+  📈 Market 4: Index 1 → 1.0000051877219684 (+0.0005%)

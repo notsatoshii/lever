@@ -9,16 +9,20 @@ const POLYMARKET_API = 'https://gamma-api.polymarket.com';
 const UPDATE_INTERVAL = 30_000; // 30 seconds
 
 // Market mappings: Our market ID → Polymarket slug
+// Note: Markets 4-8 and 9-12 were created from script retries
 const MARKET_MAPPINGS: { id: number; name: string; slug: string }[] = [
   { id: 1, name: 'MicroStrategy BTC Sale', slug: 'will-microstrategy-sell-any-bitcoin-before-2027' },
   { id: 2, name: 'Trump Deportations 250-500k', slug: 'will-trump-deport-250000-500000-people' },
   { id: 3, name: 'GTA 6 $100+', slug: 'will-gta-6-cost-100' },
-  // New markets (to be added via AddMarketsV2)
   { id: 4, name: 'US Revenue <$100b', slug: 'will-the-us-collect-less-than-100b-in-revenue-in-2025' },
   { id: 5, name: 'Tariffs >$250b', slug: 'will-tariffs-generate-250b-in-2025' },
   { id: 6, name: 'US Revenue $500b-$1t', slug: 'will-the-us-collect-between-500b-and-1t-in-revenue-in-2025' },
   { id: 7, name: 'US Revenue $100b-$200b', slug: 'will-the-us-collect-between-100b-and-200b-in-revenue-in-2025' },
   { id: 8, name: 'Trump Deport <250k', slug: 'will-trump-deport-less-than-250000' },
+  { id: 9, name: 'US Revenue <$100b (2)', slug: 'will-the-us-collect-less-than-100b-in-revenue-in-2025' },
+  { id: 10, name: 'Tariffs $250b+ (2)', slug: 'will-tariffs-generate-250b-in-2025' },
+  { id: 11, name: 'Revenue $500b-$1t (2)', slug: 'will-the-us-collect-between-500b-and-1t-in-revenue-in-2025' },
+  { id: 12, name: 'Trump Deport <250k (2)', slug: 'will-trump-deport-less-than-250000' },
 ];
 
 const PRICE_ENGINE_ABI = [
@@ -32,7 +36,22 @@ const PRICE_ENGINE_ABI = [
     ],
     outputs: [],
   },
+  {
+    name: 'getPriceData',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'marketId', type: 'uint256' }],
+    outputs: [
+      { name: 'oraclePrice', type: 'uint256' },
+      { name: 'emaPrice', type: 'uint256' },
+      { name: 'markPrice', type: 'uint256' },
+      { name: 'lastUpdate', type: 'uint256' },
+    ],
+  },
 ] as const;
+
+// Max price step per update (10% = 0.1)
+const MAX_PRICE_STEP = 0.10;
 
 interface PolymarketMarket {
   slug: string;
@@ -103,10 +122,35 @@ async function main() {
         }
 
         // Clamp price to valid range
-        const clampedPrice = Math.min(0.99, Math.max(0.01, price));
-        const priceWei = parseUnits(clampedPrice.toFixed(18), 18);
-
-        console.log(`  📈 Market ${market.id} (${market.name}): ${(clampedPrice * 100).toFixed(2)}%`);
+        const targetPrice = Math.min(0.99, Math.max(0.01, price));
+        
+        // Get current on-chain price to calculate step
+        let priceToSubmit = targetPrice;
+        try {
+          const [oraclePrice, emaPrice] = await publicClient.readContract({
+            address: PRICE_ENGINE,
+            abi: PRICE_ENGINE_ABI,
+            functionName: 'getPriceData',
+            args: [BigInt(market.id)],
+          }) as [bigint, bigint, bigint, bigint];
+          
+          const currentPrice = Number(emaPrice) / 1e18;
+          const diff = targetPrice - currentPrice;
+          
+          // If difference is too large, step gradually
+          if (Math.abs(diff) > MAX_PRICE_STEP) {
+            priceToSubmit = currentPrice + (diff > 0 ? MAX_PRICE_STEP : -MAX_PRICE_STEP);
+            priceToSubmit = Math.min(0.99, Math.max(0.01, priceToSubmit));
+            console.log(`  📈 Market ${market.id} (${market.name}): ${(currentPrice * 100).toFixed(1)}% → ${(priceToSubmit * 100).toFixed(1)}% (target: ${(targetPrice * 100).toFixed(1)}%)`);
+          } else {
+            console.log(`  📈 Market ${market.id} (${market.name}): ${(targetPrice * 100).toFixed(2)}%`);
+          }
+        } catch (e) {
+          // If can't read price, just try target
+          console.log(`  📈 Market ${market.id} (${market.name}): ${(targetPrice * 100).toFixed(2)}%`);
+        }
+        
+        const priceWei = parseUnits(priceToSubmit.toFixed(18), 18);
 
         // Update on-chain
         const hash = await walletClient.writeContract({

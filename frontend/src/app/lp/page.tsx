@@ -186,7 +186,25 @@ export default function LPPage() {
   };
 
   const utilizationPercent = utilization ? Number(formatUnits(utilization, 18)) * 100 : 0;
-  const estimatedAPY = utilizationPercent * 0.15; // Rough estimate
+  
+  // APY Calculation based on:
+  // 1. Share price appreciation (historical performance)
+  // 2. Projected yield from current utilization
+  const sharePriceNum = sharePrice ? Number(formatUnits(sharePrice, 18)) : 1.0;
+  const sharePriceAPY = sharePriceNum > 1.0 
+    ? ((sharePriceNum - 1.0) * 365 / 7) * 100  // Assume 7 days of operation, annualize
+    : 0;
+  
+  // Projected APY components:
+  // - Borrow fees: ~15% APR base rate * utilization
+  // - Trading fees: ~10 bps per trade, estimated daily volume = 10% of TVL when utilized
+  const borrowFeeAPY = utilizationPercent * 0.15;  // 15% base rate * utilization
+  const tradingFeeAPY = utilizationPercent * 0.05; // Trading fee contribution
+  
+  // Combine: use share price APY if available, otherwise projected
+  const estimatedAPY = sharePriceAPY > 0 
+    ? sharePriceAPY 
+    : borrowFeeAPY + tradingFeeAPY;
 
   return (
     <div className="px-6 py-8">
@@ -221,6 +239,23 @@ export default function LPPage() {
                 <p className="text-2xl font-bold">
                   ${sharePrice ? Number(formatUnits(sharePrice, 18)).toFixed(4) : '—'}
                 </p>
+              </div>
+            </div>
+            
+            {/* APY Display */}
+            <div className="mt-4 pt-4 border-t border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-400 text-sm mb-1">Estimated APY</p>
+                  <p className="text-3xl font-bold text-lever-green">
+                    {estimatedAPY.toFixed(1)}%
+                  </p>
+                </div>
+                <div className="text-right text-sm text-gray-500">
+                  <p>Borrow fees: {borrowFeeAPY.toFixed(1)}%</p>
+                  <p>Trading fees: {tradingFeeAPY.toFixed(1)}%</p>
+                  {sharePriceAPY > 0 && <p className="text-lever-green">Actual (7d): {sharePriceAPY.toFixed(1)}%</p>}
+                </div>
               </div>
             </div>
             

@@ -153,6 +153,36 @@ contract PriceEngine {
         emit PriceConfigSet(marketId, oracle, emaPeriod, vammDepth);
     }
     
+    /**
+     * @notice Force update price (admin bypass for stale/deviated prices)
+     * @dev Skips deviation check, resets EMA to new price
+     * @param marketId Market to update
+     * @param newPrice New price to set (0-1e18)
+     */
+    function forceUpdatePrice(
+        uint256 marketId,
+        uint256 newPrice
+    ) external onlyOwner marketConfigured(marketId) {
+        if (newPrice == 0 || newPrice > PRICE_PRECISION) revert InvalidPrice();
+        
+        PriceConfig storage config = priceConfigs[marketId];
+        uint256 markPrice = _calculateMarkPrice(marketId, newPrice, config.vammDepth);
+        
+        config.oraclePrice = newPrice;
+        config.emaPrice = newPrice;  // Reset EMA to new price
+        config.markPrice = markPrice;
+        config.lastUpdate = block.timestamp;
+        
+        emit PriceUpdated(marketId, newPrice, newPrice, markPrice);
+    }
+    
+    /**
+     * @notice Update maxDeviation for a market
+     */
+    function setMaxDeviation(uint256 marketId, uint256 newMaxDeviation) external onlyOwner {
+        priceConfigs[marketId].maxDeviation = newMaxDeviation;
+    }
+    
     // ============ Keeper Functions ============
     
     /**
